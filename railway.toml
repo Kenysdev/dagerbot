@@ -1,0 +1,5 @@
+[build]
+builder = "NIXPACKS"
+
+[phases.install]
+cmds = ["pnpm install --no-frozen-lockfile"]
