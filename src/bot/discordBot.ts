@@ -71,10 +71,16 @@ export async function startDiscordBot(params: {
 
     try {
       await message.channel.sendTyping();
+      const senderName = isDm
+        ? message.author.globalName ?? message.author.username
+        : message.member?.nickname ??
+          message.author.globalName ??
+          message.author.username;
+      const formattedText = `${senderName}: ${text}`;
       const sessionId = `${message.guildId ?? "dm"}:${message.channelId}:${message.author.id}`;
       const result = await chatService.sendMessage({
         sessionId,
-        text,
+        text: formattedText,
         ip: `discord:${message.author.id}`,
       });
       await message.reply(result.reply);
