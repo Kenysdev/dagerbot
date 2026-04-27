@@ -1,6 +1,6 @@
 {
   "name": "dagerbot",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Backend en TypeScript para chat HTTP con OpenAI, usando async/await y Fastify.",
   "main": "dist/main.js",
   "scripts": {
@@ -15,6 +15,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "better-sqlite3": "^12.9.0",
     "discord.js": "^14.25.1",
     "dotenv": "^17.2.2",
     "fastify": "^5.8.4",
@@ -22,8 +23,12 @@
     "redis": "^5.11.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.12.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["better-sqlite3"]
   }
 }
