@@ -32,7 +32,7 @@ function defaultSettings(): AppSettings {
   return {
     meme: {
       channelId: "",
-      autoReact: { enabled: false, emojis: ["🔥", "😂", "👍"] },
+      autoReact: { enabled: false, random: false, emojis: ["🔥", "😂", "👍"] },
       mediaOnly: { enabled: false },
     },
   };

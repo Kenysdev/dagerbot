@@ -42,6 +42,7 @@ async function handleShow(
       "🎭 **meme**",
       `  • channel: ${meme.channelId ? `<#${meme.channelId}>` : "not set"}`,
       `  • auto-react: ${meme.autoReact.enabled ? "✅ on" : "❌ off"}`,
+      `  • random-react: ${meme.autoReact.random ? "✅ on" : "❌ off"}`,
       `  • emojis: ${meme.autoReact.emojis.join(" ")}`,
       `  • media-only: ${meme.mediaOnly.enabled ? "✅ on" : "❌ off"}`,
     ].join("\n"),

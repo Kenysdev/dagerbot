@@ -1,6 +1,6 @@
 import { Events, type Client, type Message } from "discord.js";
 import type { MemeSettings, SettingsManager } from "../../core/types.js";
-import { hasMediaAttachment } from "../../features/meme.js";
+import { hasMediaAttachment, selectEmojis } from "../../features/meme.js";
 
 async function handleMemeFeature(
   message: Message,
@@ -14,7 +14,8 @@ async function handleMemeFeature(
   const hasMedia = hasMediaAttachment(contentTypes);
 
   if (config.autoReact.enabled && hasMedia) {
-    for (const emoji of config.autoReact.emojis) {
+    const toReact = selectEmojis(config.autoReact.emojis, config.autoReact.random);
+    for (const emoji of toReact) {
       await message.react(emoji);
     }
   }
