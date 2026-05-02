@@ -20,6 +20,7 @@ export type BotCommand = {
 
 export type AutoReactConfig = {
   enabled: boolean;
+  random: boolean;
   emojis: string[];
 };
 

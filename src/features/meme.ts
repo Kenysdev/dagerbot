@@ -1,6 +1,6 @@
 const MEDIA_MIME_PREFIXES = ["image/", "video/"] as const;
 
-export const MAX_REACT_EMOJIS = 3;
+export const MAX_REACT_EMOJIS = 5;
 
 /**
  * Returns true if at least one attachment is an image or video.
@@ -34,4 +34,13 @@ export function getRequiredPermissionChecks(
     checkAddReactions: ctx.activatingAutoReact && ctx.effectiveChannelId !== null,
     checkManageMessages: ctx.activatingMediaOnly && ctx.effectiveChannelId !== null,
   };
+}
+
+export function selectEmojis(emojis: string[], random: boolean): string[] {
+  if (emojis.length === 0) return [];
+  
+  if (random) {
+    return [emojis[Math.floor(Math.random() * emojis.length)]];
+  }
+  return emojis;
 }

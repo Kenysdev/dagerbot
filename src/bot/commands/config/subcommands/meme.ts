@@ -57,6 +57,13 @@ export function memeSubcommand(
       )
       .addStringOption((opt) =>
         opt
+          .setName("random-react")
+          .setDescription("React with one random emoji instead of all")
+          .setRequired(false)
+          .addChoices({ name: "on", value: "on" }, { name: "off", value: "off" })
+      )
+      .addStringOption((opt) =>
+        opt
           .setName("emojis")
           .setDescription(`Reaction emojis, space-separated (max ${MAX_REACT_EMOJIS})`)
           .setRequired(false)
@@ -117,9 +124,10 @@ async function handleMeme(
   const guildId = interaction.guildId;
   const channel = interaction.options.getChannel<ChannelType.GuildText>("channel");
   const autoReact = interaction.options.getString("auto-react");
+  const randomReact = interaction.options.getString("random-react");
   const emojisRaw = interaction.options.getString("emojis");
   const mediaOnly = interaction.options.getString("media-only");
-  const nothingProvided = !channel && !autoReact && !emojisRaw && !mediaOnly;
+  const nothingProvided = !channel && !autoReact && !emojisRaw && !mediaOnly && !randomReact;
 
   if (channel && !interaction.guild?.channels.cache.has(channel.id)) {
     await interaction.reply({
@@ -137,6 +145,7 @@ async function handleMeme(
         "**Meme Module Settings**",
         `  • channel: ${meme.channelId ? `<#${meme.channelId}>` : "not set"}`,
         `  • auto-react: ${meme.autoReact.enabled ? "✅ on" : "❌ off"}`,
+        `  • random-react: ${meme.autoReact.random ? "✅ on" : "❌ off"}`,
         `  • emojis: ${meme.autoReact.emojis.join(" ")}`,
         `  • media-only: ${meme.mediaOnly.enabled ? "✅ on" : "❌ off"}`,
       ].join("\n"),
@@ -219,6 +228,10 @@ async function handleMeme(
     if (autoReact === "on" && !effectiveChannelId) {
       warnings.push("⚠️ No channel configured yet. Set a channel for auto-react to work.");
     }
+  }
+  if (randomReact) {
+    updated.meme.autoReact.random = randomReact === "on";
+    changes.push(`Random-react → ${randomReact === "on" ? "✅ on" : "❌ off"}`);
   }
   if (emojisRaw) {
     const emojis = parseEmojis(emojisRaw);
