@@ -37,6 +37,8 @@ export function getRequiredPermissionChecks(
 }
 
 export function selectEmojis(emojis: string[], random: boolean): string[] {
+  if (emojis.length === 0) return [];
+  
   if (random) {
     return [emojis[Math.floor(Math.random() * emojis.length)]];
   }
