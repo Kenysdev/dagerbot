@@ -1,7 +1,5 @@
 import type { AppSettings, SettingsManager } from "../core/types.js";
-import type { DbProvider } from "../data/types.js";
-import type { SqliteProvider } from "../data/providers/sqlite.js";
-import { createSettingsRepository } from "../data/repositories/sqliteSettingsRepository.js";
+import type { SettingsRepository } from "../data/types.js";
 
 /**
  * Dynamic settings manager — multi-server implementation.
@@ -53,8 +51,7 @@ function mergeDefaults<T>(defaults: T, data: unknown): T {
 
 type StoredRow = { version: number; data: AppSettings };
 
-export function createSettingsManager(provider: DbProvider): SettingsManager {
-  const repository = createSettingsRepository(provider as SqliteProvider);
+export function createSettingsManager(repository: SettingsRepository): SettingsManager {
 
   // Repair outdated configs before the bot starts serving requests
   repository.repairAll((raw) => {

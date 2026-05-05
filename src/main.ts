@@ -6,8 +6,8 @@ import { createFixedWindowLimiter } from "./core/rateLimit";
 import { createOpenAIClient } from "./infra/openaiClient";
 import { createChatService } from "./services/chatService";
 import { startDiscordBot } from "./bot/discordBot";
-import { createSettingsManager } from "./config/settingsManager.js"
-import { createDbProvider } from "./data/index.js";
+import { createDataLayer } from "./data/index.js";
+import { createSettingsManager } from "./config/settingsManager.js";
 
 async function main() {
   if (!process.env.OPENAI_API_KEY) {
@@ -39,8 +39,8 @@ async function main() {
     allowSession,
   });
 
-  const dbProvider = await createDbProvider();     
-  const settingsManager = createSettingsManager(dbProvider);
+  const { settingsRepository } = await createDataLayer();
+  const settingsManager = createSettingsManager(settingsRepository);
 
   const app = buildApp({ config, chatService });
 
