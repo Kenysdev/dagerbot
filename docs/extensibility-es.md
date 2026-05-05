@@ -11,11 +11,12 @@ Está dirigido a colaboradores que deseen agregar nuevas características.
 Nueva característica
   ├── lee configuración  →  Settings Manager   (src/config/settingsManager.ts)
   ├── agrega un comando  →  Command Manager    (src/bot/commands/commandManager.ts)
-  └── maneja eventos     →  Event Dispatcher   (src/bot/events/)
+  ├── maneja eventos     →  Event Dispatcher   (src/bot/events/)
+  └── persiste datos     →  Data Layer         (src/data/)
 ```
 
 > [!IMPORTANT]
-> Los tres módulos base **nunca se modifican** al agregar una característica nueva.
+> Los cuatro módulos base **nunca se modifican** al agregar una característica nueva.
 > Solo se **extienden** — se agrega una entrada nueva sin tocar el código existente.
 
 ---
@@ -157,6 +158,83 @@ import { registerGuildMemberAddEvent } from "./events/onGuildMemberAdd.js";
 Luego llámalo después de registerMessageCreateEvent:
 ```typescript
 registerGuildMemberAddEvent(client, settingsManager);
+```
+
+---
+
+## Módulo base 4 — Capa de datos
+
+Capa centralizada de persistencia de datos. Cualquier característica que necesite
+almacenar datos utiliza esta capa en lugar de conectarse directamente a la base de datos.
+
+**Archivos clave:**
+- `src/data/types.ts` — contratos para proveedores y repositorios
+- `src/data/index.ts` — ensambla e inyecta todos los repositorios
+- `src/data/providers/` — un archivo por proveedor de base de datos
+- `src/data/repositories/` — un archivo por característica, por proveedor
+
+**Al agregar una característica que necesite persistir datos:**
+
+1. Agregar su contrato de repositorio en `src/data/types.ts`:
+```typescript
+export type WelcomeRepository = {
+  findByGuild: (guildId: string) => Promise<WelcomeRecord | null>;
+  save: (guildId: string, data: WelcomeRecord) => Promise<void>;
+};
+```
+
+2. Crear su implementación en `src/data/repositories/sqliteWelcomeRepository.ts`
+siguiendo el mismo patrón que `sqliteSettingsRepository.ts`.
+
+3. Agregarlo en `src/data/index.ts`:
+```typescript
+export type DataLayer = {
+  settingsRepository: SettingsRepository;
+  welcomeRepository: WelcomeRepository; // <- agregar aquí
+};
+
+export async function createDataLayer(): Promise<DataLayer> {
+  const provider = createSqliteProvider();
+  await provider.initialize();
+  return {
+    settingsRepository: createSettingsRepository(provider),
+    welcomeRepository: createWelcomeRepository(provider), // <- agregar aquí
+  };
+}
+```
+
+4. Inyectarlo en `src/main.ts`:
+```typescript
+const { settingsRepository, welcomeRepository } = await createDataLayer();
+```
+
+**Estrategia de proveedores:**
+
+Cada proveedor de base de datos tiene su propia rama. La única diferencia entre
+ramas es `src/data/index.ts` y `package.json` — todo lo demás es idéntico.
+El mantenedor decide cuál proveedor queda como default en `main`.
+
+**Agregar un nuevo proveedor:**
+
+Crear un archivo en `src/data/providers/` implementando el contrato `DbProvider`
+de `types.ts`. Luego crear las implementaciones de repositorio correspondientes
+en `src/data/repositories/`. Ver `sqliteSettingsRepository` como referencia.
+
+**Nota sobre la inyección en `main.ts`:**
+
+No todos los repositorios necesitan inyectarse en `main.ts`. Solo inyectar ahí
+lo que necesita estar disponible al arrancar (como `settingsRepository` para configuración).
+
+Los repositorios usados dentro de la lógica del bot — como un repositorio de conteo
+de memes disparado por un evento de mensaje — se pasan como parámetros donde se necesiten:
+
+```typescript
+// src/bot/events/onMessageCreate.ts
+export function registerMessageCreateEvent(
+  client: Client,
+  settingsManager: SettingsManager,
+  memeRepository: MemeRepository  // <- se inyecta aquí, no en main.ts
+): void {
 ```
 
 ---

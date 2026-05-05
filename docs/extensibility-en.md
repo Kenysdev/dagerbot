@@ -11,11 +11,12 @@ It is intended for contributors who want to add new features.
 New feature
   ├── reads config    →  Settings Manager   (src/config/settingsManager.ts)
   ├── adds a command  →  Command Manager    (src/bot/commands/commandManager.ts)
-  └── handles events  →  Event Dispatcher   (src/bot/events/)
+  ├── handles events  →  Event Dispatcher   (src/bot/events/)
+  └── persists data   →  Data Layer         (src/data/)
 ```
 
 > [!IMPORTANT]
-> The three core modules are never modified when adding a new feature.
+> The four core modules are never modified when adding a new feature.
 > They are only **extended** — a new entry is added, nothing existing is changed.
 
 ---
@@ -158,6 +159,83 @@ Then call it after registerMessageCreateEvent:
 
 ```typescript
 registerGuildMemberAddEvent(client, settingsManager);
+```
+
+---
+
+## Core 4 — Data Layer
+
+Centralized data persistence layer. Any feature that needs to store data
+uses this layer instead of connecting to the database directly.
+
+**Key files:**
+- `src/data/types.ts` — contracts for providers and repositories
+- `src/data/index.ts` — assembles and injects all repositories
+- `src/data/providers/` — one file per database provider
+- `src/data/repositories/` — one file per feature, per provider
+
+**When adding a feature that needs to persist data:**
+
+1. Add its repository contract to `src/data/types.ts`:
+```typescript
+export type WelcomeRepository = {
+  findByGuild: (guildId: string) => Promise<WelcomeRecord | null>;
+  save: (guildId: string, data: WelcomeRecord) => Promise<void>;
+};
+```
+
+2. Create its implementation in `src/data/repositories/sqliteWelcomeRepository.ts`
+following the same pattern as `sqliteSettingsRepository.ts`.
+
+3. Add it to `src/data/index.ts`:
+```typescript
+export type DataLayer = {
+  settingsRepository: SettingsRepository;
+  welcomeRepository: WelcomeRepository; // <- add here
+};
+
+export async function createDataLayer(): Promise<DataLayer> {
+  const provider = createSqliteProvider();
+  await provider.initialize();
+  return {
+    settingsRepository: createSettingsRepository(provider),
+    welcomeRepository: createWelcomeRepository(provider), // <- add here
+  };
+}
+```
+
+4. Inject it in `src/main.ts`:
+```typescript
+const { settingsRepository, welcomeRepository } = await createDataLayer();
+```
+
+**Provider strategy:**
+
+Each database provider has its own branch. The only difference between branches
+is `src/data/index.ts` and `package.json` — everything else is identical.
+The maintainer decides which provider is the default in `main`.
+
+**Adding a new provider:**
+
+Create a new file in `src/data/providers/` implementing the `DbProvider` contract
+from `types.ts`. Then create the corresponding repository implementations in
+`src/data/repositories/`. See `sqliteSettingsRepository` as reference.
+
+**Note on `main.ts` injection:**
+
+Not all repositories need to be injected in `main.ts`. Only inject there what needs
+to be available at startup (like `settingsRepository` for configuration).
+
+Repositories used inside bot logic — like a meme count repository triggered by
+a message event — are passed as parameters where needed:
+
+```typescript
+// src/bot/events/onMessageCreate.ts
+export function registerMessageCreateEvent(
+  client: Client,
+  settingsManager: SettingsManager,
+  memeRepository: MemeRepository  // <- injected here, not in main.ts
+): void {
 ```
 
 ---
