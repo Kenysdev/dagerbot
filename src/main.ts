@@ -7,6 +7,7 @@ import { createOpenAIClient } from "./infra/openaiClient";
 import { createChatService } from "./services/chatService";
 import { startDiscordBot } from "./bot/discordBot";
 import { createSettingsManager } from "./config/settingsManager.js"
+import { createDbProvider } from "./data/index.js";
 
 async function main() {
   if (!process.env.OPENAI_API_KEY) {
@@ -38,7 +39,8 @@ async function main() {
     allowSession,
   });
 
-  const settingsManager = createSettingsManager();
+  const dbProvider = await createDbProvider();     
+  const settingsManager = createSettingsManager(dbProvider);
 
   const app = buildApp({ config, chatService });
 
