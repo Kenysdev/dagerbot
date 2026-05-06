@@ -89,7 +89,8 @@ Si no defines `OPENAI_SYSTEM_PROMPT`, se usa `src/config/systemPrompt.ts` por de
 - `src/infra/` clientes externos (OpenAI).
 - `src/bot/` cliente de Discord, comandos slash y eventos.
 - `src/features/` lógica de características independiente de Discord.
-- `src/config/settingsManager.ts` configuración dinámica por servidor (SQLite).
+- `src/config/settingsManager.ts` configuración dinámica por servidor.
+- `src/data/` capa de datos — proveedores, repositorios y contratos.
 - `data/bot.db` base de datos SQLite generada automáticamente al arrancar.
 
 ## Extensibilidad
