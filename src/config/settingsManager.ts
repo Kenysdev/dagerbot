@@ -26,6 +26,12 @@ function defaultSettings(): AppSettings {
       autoReact: { enabled: false, random: false, emojis: ["🔥", "😂", "👍"] },
       mediaOnly: { enabled: false },
     },
+    memeReward: {
+      enabled: false,
+      roleId: "",
+      goal: 50,
+      message: "🎉 Congratulations {user}! You’ve reached the goal and earned the {role} role.",
+    },
   };
 }
 
