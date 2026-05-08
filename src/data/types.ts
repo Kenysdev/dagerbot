@@ -12,3 +12,18 @@ export type SettingsRepository = {
   save: (guildId: string, raw: string) => Promise<void>;
   repairAll: (repairFn: (raw: string) => string) => void;
 };
+
+export type MemeCount = {
+  guildId: string;
+  userId: string;
+  count: number;
+  startedAt: number;
+  updatedAt: number;
+};
+
+export type MemeRepository = {
+  increment: (guildId: string, userId: string) => Promise<MemeCount>;
+  getCount: (guildId: string, userId: string) => Promise<number>;
+  getTopCounts: (guildId: string, limit: number, offset: number) => Promise<MemeCount[]>;
+  getTotalUsers: (guildId: string) => Promise<number>;
+};

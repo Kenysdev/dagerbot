@@ -1,12 +1,14 @@
 // To use a different provider, switch to the corresponding branch.
 // See README for available branches and deployment instructions.
 
-import type { SettingsRepository } from "./types.js";
+import type { SettingsRepository, MemeRepository } from "./types.js";
 import { createSqliteProvider } from "./providers/sqlite.js";
 import { createSettingsRepository } from "./repositories/sqliteSettingsRepository.js";
+import { createMemeRepository } from "./repositories/sqliteMemeRepository.js";
 
 export type DataLayer = {
   settingsRepository: SettingsRepository;
+  memeRepository: MemeRepository;
   // newRepository: NewRepository; <- next feature
 };
 
@@ -17,6 +19,7 @@ export async function createDataLayer(): Promise<DataLayer> {
 
   return {
     settingsRepository: createSettingsRepository(provider),
+    memeRepository: createMemeRepository(provider),
     // newRepository: createNewRepository(provider), <- next feature
   };
 }
