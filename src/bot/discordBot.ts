@@ -4,6 +4,7 @@ import {
   GatewayIntentBits,
   Partials,
 } from "discord.js";
+import type { DataLayer } from "../data/index.js";
 import type { ChatService } from "../services/chatService.js";
 import type { SettingsManager } from "../core/types.js";
 import { registerMessageCreateEvent } from "./events/onMessageCreate.js";
@@ -14,8 +15,9 @@ import { createConfigCommand } from "./commands/config/index.js";
 export async function startDiscordBot(params: {
   chatService: ChatService;
   settingsManager: SettingsManager;
+  dataLayer: DataLayer;
 }): Promise<Client | null> {
-  const { chatService, settingsManager } = params;
+  const { chatService, settingsManager, dataLayer } = params;
 
   const token = process.env.DISCORD_TOKEN;
   if (!token) {
@@ -70,7 +72,7 @@ export async function startDiscordBot(params: {
     });
   });
 
-  registerMessageCreateEvent(client, settingsManager);
+  registerMessageCreateEvent(client, settingsManager, dataLayer.memeRepository);
 
   client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot) return;

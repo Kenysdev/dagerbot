@@ -9,6 +9,7 @@ import { VALID_CONFIG_PERMISSIONS } from "../../../config/env.js";
 import type { BotCommand, SettingsManager } from "../../../core/types.js";
 import { showSubcommand } from "./subcommands/show.js";
 import { memeSubcommand } from "./subcommands/meme.js";
+import { memeRewardSubcommand } from "./subcommands/memeReward.js";
 // import { NewFeatureSubcommand } from "./subcommands/NewFeature.js"; <- future feature
 
 type SubcommandHandler = (
@@ -46,6 +47,7 @@ export function createConfigCommand(settingsManager: SettingsManager): BotComman
 
   showSubcommand(builder, subcommands);
   memeSubcommand(builder, subcommands);
+  memeRewardSubcommand(builder, subcommands);
   // welcomeSubcommand(builder, subcommands);
 
   return {
