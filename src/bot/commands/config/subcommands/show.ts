@@ -33,7 +33,7 @@ async function handleShow(
     return;
   }
 
-  const { meme } = await settingsManager.getSettings(interaction.guildId);
+  const { meme, memeReward } = await settingsManager.getSettings(interaction.guildId);
 
   await interaction.reply({
     content: [
@@ -45,6 +45,12 @@ async function handleShow(
       `  • random-react: ${meme.autoReact.random ? "✅ on" : "❌ off"}`,
       `  • emojis: ${meme.autoReact.emojis.join(" ")}`,
       `  • media-only: ${meme.mediaOnly.enabled ? "✅ on" : "❌ off"}`,
+      ``,
+      `🏆 **meme-reward**`,
+      `  • enabled: ${memeReward.enabled ? "✅ on" : "❌ off"}`,
+      `  • role: ${memeReward.roleId ? `<@&${memeReward.roleId}>` : "not set"}`,
+      `  • goal: ${memeReward.goal} memes`,
+      `  • message: ${memeReward.message || "not set"}`,
     ].join("\n"),
     flags: MessageFlags.Ephemeral,
   });

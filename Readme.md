@@ -29,7 +29,8 @@ Backend en TypeScript con Fastify para chatbot de discord en el antro usando Ope
 - En servidores responde si mencionas al bot o si usas prefijo (por defecto `!`).
 - Usa el mismo backend/servicio interno que `/chat`.
 - `/config show` — muestra el estado de todos los módulos.
-- `/config meme` — configura el módulo de memes (canal, reacciones, modo solo-media).
+- `/config meme` — configura el módulo de memes (canal, reacciones, modo solo-media, random-react).
+- `/config meme-reward` — configura la recompensa por acumulación de memes (rol, meta, mensaje).
 
 Variables de entorno:
 
@@ -54,6 +55,7 @@ Al invitar el bot, asegurarse de incluir los siguientes permisos y scopes:
 - `Send Messages`
 - `Add Reactions`
 - `Manage Messages`
+- `Manage Roles`
 
 > [!WARNING]
 > Si se agrega una característica nueva que requiera permisos adicionales:

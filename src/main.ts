@@ -39,15 +39,15 @@ async function main() {
     allowSession,
   });
 
-  const { settingsRepository } = await createDataLayer();
-  const settingsManager = createSettingsManager(settingsRepository);
+  const dataLayer = await createDataLayer();
+  const settingsManager = createSettingsManager(dataLayer.settingsRepository);
 
   const app = buildApp({ config, chatService });
 
   await app.listen({ port: config.port, host: "0.0.0.0" });
   app.log.info(`HTTP listening on port ${config.port}`);
 
-  await startDiscordBot({ chatService, settingsManager });
+  await startDiscordBot({ chatService, settingsManager, dataLayer });
 }
 
 main().catch((err) => {

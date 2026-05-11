@@ -34,9 +34,17 @@ export type MemeSettings = {
   mediaOnly: MediaOnlyConfig;
 };
 
+export type MemeRewardSettings = {
+  enabled: boolean;
+  roleId: string;
+  goal: number;
+  message: string;
+};
+
 // AppSettings grows here — one block per feature
 export type AppSettings = {
   meme: MemeSettings;
+  memeReward: MemeRewardSettings;
   // <NameFeature>: <NameFeature>Settings; <- next feature
 };
 

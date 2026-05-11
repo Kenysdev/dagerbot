@@ -44,3 +44,17 @@ export function selectEmojis(emojis: string[], random: boolean): string[] {
   }
   return emojis;
 }
+
+export function hasReachedGoal(count: number, goal: number): boolean {
+  return goal > 0 && count >= goal;
+}
+
+export function buildRewardMessage(
+  template: string,
+  userMention: string,
+  roleMention: string
+): string {
+  return template
+    .replace("{user}", userMention)
+    .replace("{role}", roleMention);
+}

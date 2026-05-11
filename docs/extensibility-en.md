@@ -338,6 +338,7 @@ welcomeSubcommand(builder, subcommands);
 | `Send Messages` | AI chat responses |
 | `Add Reactions` | Meme module — auto-react |
 | `Manage Messages` | Meme module — media-only mode |
+| `Manage Roles` | Meme reward — assign role when goal is reached |
 | `applications.commands` | Slash command registration |
 
 > [!WARNING]
