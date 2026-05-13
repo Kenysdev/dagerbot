@@ -58,3 +58,21 @@ export function buildRewardMessage(
     .replace("{user}", userMention)
     .replace("{role}", roleMention);
 }
+
+export type RankEntry = {
+  position: number;
+  userId: string;
+  count: number;
+};
+
+export function formatRankPage(
+  entries: RankEntry[],
+  page: number,
+  totalPages: number
+): string {
+  const lines = entries.map((e) => {
+    const pos = String(e.position).padStart(2, " ");
+    return `\`${pos}.\` <@${e.userId}> — ${e.count} memes`;
+  });
+  return lines.join("\n") + `\n\nPágina ${page}/${totalPages}`;
+}
