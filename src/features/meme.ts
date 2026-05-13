@@ -38,7 +38,7 @@ export function getRequiredPermissionChecks(
 
 export function selectEmojis(emojis: string[], random: boolean): string[] {
   if (emojis.length === 0) return [];
-  
+
   if (random) {
     return [emojis[Math.floor(Math.random() * emojis.length)]];
   }
@@ -57,4 +57,22 @@ export function buildRewardMessage(
   return template
     .replace("{user}", userMention)
     .replace("{role}", roleMention);
+}
+
+export type RankEntry = {
+  position: number;
+  userId: string;
+  count: number;
+};
+
+export function formatRankPage(
+  entries: RankEntry[],
+  page: number,
+  totalPages: number
+): string {
+  const lines = entries.map((e) => {
+    const pos = String(e.position).padStart(2, " ");
+    return `\`${pos}.\` <@${e.userId}> — ${e.count}`;
+  });
+  return lines.join("\n") + `\n\nPage ${page}/${totalPages}`;
 }
