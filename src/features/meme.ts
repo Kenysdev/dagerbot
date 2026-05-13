@@ -38,7 +38,7 @@ export function getRequiredPermissionChecks(
 
 export function selectEmojis(emojis: string[], random: boolean): string[] {
   if (emojis.length === 0) return [];
-  
+
   if (random) {
     return [emojis[Math.floor(Math.random() * emojis.length)]];
   }
@@ -72,7 +72,7 @@ export function formatRankPage(
 ): string {
   const lines = entries.map((e) => {
     const pos = String(e.position).padStart(2, " ");
-    return `\`${pos}.\` <@${e.userId}> — ${e.count} memes`;
+    return `\`${pos}.\` <@${e.userId}> — ${e.count}`;
   });
-  return lines.join("\n") + `\n\nPágina ${page}/${totalPages}`;
+  return lines.join("\n") + `\n\nPage ${page}/${totalPages}`;
 }
