@@ -9,9 +9,6 @@ import type { ChatService } from "../services/chatService.js";
 import type { SettingsManager } from "../core/types.js";
 import { registerMessageCreateEvent } from "./events/onMessageCreate.js";
 import { createCommandManager } from "./commands/commandManager.js";
-import { createConfigCommand } from "./commands/config/index.js";
-import { createRankCommand } from "./commands/rank/index.js";
-// import { NewFeatureCommand } from "./commands/NewFeature/index.js"; <- future command
 
 export async function startDiscordBot(params: {
   chatService: ChatService;
@@ -46,10 +43,7 @@ export async function startDiscordBot(params: {
   });
 
   // --- Command setup ---
-  const commands = createCommandManager();
-  commands.add(createConfigCommand(settingsManager));
-  commands.add(createRankCommand({ memeRepository: dataLayer.memeRepository }));
-  // commands.add(create<Name>Command(settingsManager)); <- future command
+  const commands = createCommandManager({ settingsManager, dataLayer });
 
   client.on(Events.ClientReady, async () => {
     console.log(`Discord bot logged in as ${client.user?.tag ?? "unknown"}`);

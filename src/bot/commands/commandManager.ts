@@ -3,10 +3,13 @@ import {
   Routes,
   type ChatInputCommandInteraction,
 } from "discord.js";
-import type { BotCommand } from "../../core/types.js";
+import type { BotCommand, SettingsManager } from "../../core/types.js";
+import type { DataLayer } from "../../data/index.js";
+import { createConfigCommand } from "./config/index.js";
+import { createRankCommand } from "./rank/index.js";
+// Import additional command creators here
 
 export type CommandManager = {
-  add: (command: BotCommand) => void;
   route: (interaction: ChatInputCommandInteraction) => Promise<void>;
   registerToDiscord: (
     clientId: string,
@@ -15,14 +18,20 @@ export type CommandManager = {
   ) => Promise<void>;
 };
 
-export function createCommandManager(): CommandManager {
+export function createCommandManager(deps: {
+  settingsManager: SettingsManager;
+  dataLayer: DataLayer;
+}): CommandManager {
   const commands = new Map<string, BotCommand>();
 
-  return {
-    add: (command) => {
-      commands.set(command.name, command);
-    },
+  [
+    createConfigCommand(deps.settingsManager),
+    createRankCommand({ memeRepository: deps.dataLayer.memeRepository }),
+    // Add new commands here
 
+  ].forEach((cmd) => commands.set(cmd.name, cmd));
+
+  return {
     route: async (interaction) => {
       const command = commands.get(interaction.commandName);
       if (!command) return;
