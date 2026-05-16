@@ -45,10 +45,18 @@ interaction routing from a single place.
 **Adding a new top-level command (e.g. `/poll`):**
 
 1. Create `src/bot/commands/poll/index.ts` — export `createPollCommand(settingsManager)`.
-2. Add one line in `src/bot/discordBot.ts`:
+2. Add the import and the catalog entry in `src/bot/commands/commandManager.ts`:
 
 ```typescript
-commands.add(createPollCommand(settingsManager));
+// at the top of commandManager.ts
+import { createPollCommand } from "./poll/index.js"; // <- add here
+
+// --- Command catalog: add new commands here only ---
+[
+  createConfigCommand(deps.settingsManager),
+  createRankCommand({ memeRepository: deps.dataLayer.memeRepository }),
+  createPollCommand(deps.settingsManager), // <- add here
+].forEach((cmd) => commands.set(cmd.name, cmd));
 ```
 
 **Adding a subcommand to `/config`:**
@@ -238,94 +246,7 @@ export function registerMessageCreateEvent(
 ): void {
 ```
 
----
 
-## Step-by-step: adding a new feature
-
-### 1. Types — `src/core/types.ts`
-
-```typescript
-export type WelcomeSettings = {
-  enabled: boolean;
-  channelId: string;
-  message: string;
-};
-
-export type AppSettings = {
-  meme: MemeSettings;
-  welcome: WelcomeSettings; // <- add here
-};
-```
-
-### 2. Defaults — `src/config/settingsManager.ts`
-
-```typescript
-function defaultSettings(): AppSettings {
-  return {
-    meme: { /* ... */ },
-    welcome: {
-      enabled: false,
-      channelId: "",
-      message: "Welcome, {user}!",
-    },
-  };
-}
-```
-
-### 3. Feature logic — `src/features/welcome.ts`
-
-Pure functions only. No discord.js imports.
-
-```typescript
-export function buildWelcomeMessage(template: string, username: string): string {
-  return template.replace("{user}", username);
-}
-```
-
-### 4. Event — `src/bot/events/onGuildMemberAdd.ts`
-
-Create the file as shown in the Core 3 section above.
-Register it in `discordBot.ts` with one line.
-
-### 5. Subcommand — `src/bot/commands/config/subcommands/welcome.ts`
-
-```typescript
-export function welcomeSubcommand(
-  builder: SlashCommandBuilder,
-  handlers: SubcommandMap
-): void {
-  builder.addSubcommand((sub) =>
-    sub.setName("welcome").setDescription("View or update welcome settings")
-  );
-  handlers.set("welcome", handleWelcome);
-}
-
-async function handleWelcome(
-  interaction: ChatInputCommandInteraction,
-  settingsManager: SettingsManager
-): Promise<void> {
-  if (!interaction.guildId) {
-    await interaction.reply({
-      content: "This command only works in a server.",
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
-  }
-  // read options → clone settings → modify → saveSettings → reply
-}
-```
-
->[!IMPORTANT]
->For the feature to appear in /config show, add its status in the show.ts handler following the same pattern used for meme.
-
-### 6. Register — `src/bot/commands/config/index.ts`
-
-```typescript
-import { welcomeSubcommand } from "./subcommands/welcome.js";
-welcomeSubcommand(builder, subcommands);
-```
-
----
 
 ## Required Discord permissions
 
