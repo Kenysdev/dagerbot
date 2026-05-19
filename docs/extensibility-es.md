@@ -45,10 +45,18 @@ y el enrutamiento de interacciones desde un único lugar.
 **Agregar un comando raíz nuevo (ej: `/poll`):**
 
 1. Crear `src/bot/commands/poll/index.ts` — exportar `createPollCommand(settingsManager)`.
-2. Agregar una línea en `src/bot/discordBot.ts`:
+2. Agregar el import y la entrada en el catálogo dentro de `src/bot/commands/commandManager.ts`:
 
 ```typescript
-commands.add(createPollCommand(settingsManager));
+// al inicio de commandManager.ts
+import { createPollCommand } from "./poll/index.js"; // <- agregar aquí
+
+// --- Command catalog: add new commands here only ---
+[
+  createConfigCommand(deps.settingsManager),
+  createRankCommand({ memeRepository: deps.dataLayer.memeRepository }),
+  createPollCommand(deps.settingsManager), // <- agregar aquí
+].forEach((cmd) => commands.set(cmd.name, cmd));
 ```
 
 **Agregar un subcomando a `/config`:**
@@ -237,94 +245,7 @@ export function registerMessageCreateEvent(
 ): void {
 ```
 
----
 
-## Paso a paso: agregar una nueva característica
-
-### 1. Tipos en `src/core/types.ts`
-
-```typescript
-export type WelcomeSettings = {
-  enabled: boolean;
-  channelId: string;
-  message: string;
-};
-
-export type AppSettings = {
-  meme: MemeSettings;
-  welcome: WelcomeSettings; // <- agregar aquí
-};
-```
-
-### 2. Valores por defecto en `src/config/settingsManager.ts`
-
-```typescript
-function defaultSettings(): AppSettings {
-  return {
-    meme: { /* ... */ },
-    welcome: {
-      enabled: false,
-      channelId: "",
-      message: "¡Bienvenido, {user}!",
-    },
-  };
-}
-```
-
-### 3. Lógica pura en `src/features/welcome.ts`
-
-Solo funciones puras. Cero imports de discord.js.
-
-```typescript
-export function buildWelcomeMessage(plantilla: string, nombreUsuario: string): string {
-  return plantilla.replace("{user}", nombreUsuario);
-}
-```
-
-### 4. Evento en `src/bot/events/onGuildMemberAdd.ts`
-
-Crear el archivo como se muestra en la sección del Módulo base 3.
-Registrarlo en `discordBot.ts` con una línea.
-
-### 5. Subcomando en `src/bot/commands/config/subcommands/welcome.ts`
-
-```typescript
-export function welcomeSubcommand(
-  builder: SlashCommandBuilder,
-  handlers: SubcommandMap
-): void {
-  builder.addSubcommand((sub) =>
-    sub.setName("welcome").setDescription("View or update welcome settings")
-  );
-  handlers.set("welcome", handleWelcome);
-}
-
-async function handleWelcome(
-  interaction: ChatInputCommandInteraction,
-  settingsManager: SettingsManager
-): Promise<void> {
-  if (!interaction.guildId) {
-    await interaction.reply({
-      content: "This command only works in a server.",
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
-  }
-  // leer opciones → clonar settings → modificar → saveSettings → responder
-}
-```
-
-> [!IMPORTANT]
-> Para que la característica aparezca en /config show, agregar su estado en el handler de show.ts siguiendo el patrón de meme.
-
-### 6. Registrar en `src/bot/commands/config/index.ts`
-
-```typescript
-import { welcomeSubcommand } from "./subcommands/welcome.js";
-welcomeSubcommand(builder, subcommands);
-```
-
----
 
 ## Permisos de Discord requeridos
 
