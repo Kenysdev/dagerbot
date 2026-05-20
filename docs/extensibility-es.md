@@ -11,7 +11,7 @@ Está dirigido a colaboradores que deseen agregar nuevas características.
 Nueva característica
   ├── lee configuración  →  Settings Manager   (src/config/settingsManager.ts)
   ├── agrega un comando  →  Command Manager    (src/bot/commands/commandManager.ts)
-  ├── maneja eventos     →  Event Dispatcher   (src/bot/events/)
+  ├── maneja eventos     →  Event Dispatcher   (src/bot/events/eventDispatcher.ts)
   └── persiste datos     →  Data Layer         (src/data/)
 ```
 
@@ -59,6 +59,8 @@ import { createPollCommand } from "./poll/index.js"; // <- agregar aquí
 ].forEach((cmd) => commands.set(cmd.name, cmd));
 ```
 
+`discordBot.ts` nunca se modifica al agregar un comando nuevo.
+
 **Agregar un subcomando a `/config`:**
 
 Cada característica define un archivo que registra simultáneamente la definición
@@ -85,56 +87,62 @@ tuCaracteristicaSubcommand(builder, subcommands);
 
 ## Módulo base 3 — Event Dispatcher
 
-Un archivo por tipo de evento de Discord. Cada archivo contiene un único listener
-que delega a cada característica que necesita ese evento.
+Dos archivos concentran todos los eventos con lógica de negocio:
 
-**Nunca registrar un nuevo `client.on()` fuera de estos archivos.**
+- `src/bot/events/eventDispatcher.ts` — registra todos los `client.on()` con lógica de negocio y delega a los listeners
+- `src/bot/events/listeners/` — un archivo por feature, por evento
 
-Archivos de eventos actuales:
+Los eventos de infraestructura (`ClientReady`, `Error`, `InteractionCreate`) permanecen en `discordBot.ts` — son setup puro del bot sin lógica de negocio y nunca van a crecer.
 
-| Archivo | Evento de Discord | Usado por |
+**Regla: nunca registrar un nuevo `client.on()` con lógica de negocio fuera de `eventDispatcher.ts`.**
+
+Listeners actuales:
+
+| Archivo | Evento | Feature |
 |---|---|---|
-| `src/bot/events/onMessageCreate.ts` | `MessageCreate` | Módulo meme |
+| `src/bot/events/listeners/memeListener.ts` | `MessageCreate` | Módulo meme + reward |
+| `src/bot/events/listeners/chatAiListener.ts` | `MessageCreate` | Chat con IA |
 
 **Agregar una característica a un evento existente:**
 
-Abrir el archivo existente `src/bot/events/onMessageCreate.ts` y agregar directamente dentro de él:
-
-1. Una función handler privada en la parte superior del archivo
-2. Una llamada a esa función dentro del listener existente
+1. Crear `src/bot/events/listeners/yourFeatureListener.ts`:
 
 ```typescript
-// src/bot/events/onMessageCreate.ts (archivo existente — agregar dentro de él)
+import type { Message } from "discord.js";
+import type { YourFeatureSettings } from "../../../core/types.js";
 
-// Paso 1: agregar la función handler privada cerca de la parte superior
-async function handleYourFeature(
+export async function handleYourFeature(
   message: Message,
   config: YourFeatureSettings
 ): Promise<void> {
   if (!config.enabled) return;
   // ...tu lógica aquí
 }
+```
 
-// Paso 2: llamarla dentro del listener existente, después de los handlers actuales
-// (el listener ya existe — solo agregar la línea abajo dentro de él)
+2. Importarlo y llamarlo en `eventDispatcher.ts`:
+
+```typescript
+import { handleYourFeature } from "./listeners/yourFeatureListener.js";
+
+// dentro del listener de MessageCreate:
 await handleYourFeature(message, settings.yourFeature).catch((err) => {
   console.error("[yourFeature] Error:", err);
 });
 ```
 
-El evento de Discord (`Events.MessageCreate`) ya está registrado — se está extendiendo
-el listener existente, no creando uno nuevo.
+`discordBot.ts` nunca se modifica al agregar una feature a un evento existente.
 
 **Agregar una característica que necesita un evento nuevo:**
 
-Crear un archivo nuevo para ese tipo de evento. Ejemplo — dar bienvenida a nuevos miembros:
+Agregar un nuevo bloque `client.on()` dentro de `eventDispatcher.ts` y crear el listener correspondiente. Ejemplo — dar bienvenida a nuevos miembros:
 
 ```typescript
-// src/bot/events/onGuildMemberAdd.ts
-import { Events, type Client, type GuildMember } from "discord.js";
-import type { SettingsManager } from "../../core/types.js";
+// src/bot/events/listeners/welcomeListener.ts
+import type { GuildMember } from "discord.js";
+import type { WelcomeSettings } from "../../../core/types.js";
 
-async function handleWelcomeFeature(
+export async function handleWelcome(
   member: GuildMember,
   config: WelcomeSettings
 ): Promise<void> {
@@ -143,30 +151,21 @@ async function handleWelcomeFeature(
   if (!channel?.isTextBased()) return;
   await channel.send(config.message.replace("{user}", member.displayName));
 }
+```
 
-export function registerGuildMemberAddEvent(
-  client: Client,
-  settingsManager: SettingsManager
-): void {
-  client.on(Events.GuildMemberAdd, async (member) => {
-    const settings = await settingsManager.getSettings(member.guild.id);
-    await handleWelcomeFeature(member, settings.welcome).catch((err) => {
-      console.error("[welcomeFeature] Error:", err);
-    });
+```typescript
+// src/bot/events/eventDispatcher.ts — agregar un nuevo bloque client.on()
+import { handleWelcome } from "./listeners/welcomeListener.js";
+
+client.on(Events.GuildMemberAdd, async (member) => {
+  const settings = await settingsManager.getSettings(member.guild.id);
+  await handleWelcome(member, settings.welcome).catch((err) => {
+    console.error("[welcomeFeature] Error:", err);
   });
-}
+});
 ```
-Registra el nuevo archivo de evento en src/bot/discordBot.ts.
 
-Agrega la importación en la parte superior del archivo:
-
-```typescript
-import { registerGuildMemberAddEvent } from "./events/onGuildMemberAdd.js";
-```
-Luego llámalo después de registerMessageCreateEvent:
-```typescript
-registerGuildMemberAddEvent(client, settingsManager);
-```
+`discordBot.ts` nunca se modifica.
 
 ---
 
@@ -211,11 +210,6 @@ export async function createDataLayer(): Promise<DataLayer> {
 }
 ```
 
-4. Inyectarlo en `src/main.ts`:
-```typescript
-const { settingsRepository, welcomeRepository } = await createDataLayer();
-```
-
 **Estrategia de proveedores:**
 
 Cada proveedor de base de datos tiene su propia rama. La única diferencia entre
@@ -227,25 +221,6 @@ El mantenedor decide cuál proveedor queda como default en `main`.
 Crear un archivo en `src/data/providers/` implementando el contrato `DbProvider`
 de `types.ts`. Luego crear las implementaciones de repositorio correspondientes
 en `src/data/repositories/`. Ver `sqliteSettingsRepository` como referencia.
-
-**Nota sobre la inyección en `main.ts`:**
-
-No todos los repositorios necesitan inyectarse en `main.ts`. Solo inyectar ahí
-lo que necesita estar disponible al arrancar (como `settingsRepository` para configuración).
-
-Los repositorios usados dentro de la lógica del bot — como un repositorio de conteo
-de memes disparado por un evento de mensaje — se pasan como parámetros donde se necesiten:
-
-```typescript
-// src/bot/events/onMessageCreate.ts
-export function registerMessageCreateEvent(
-  client: Client,
-  settingsManager: SettingsManager,
-  memeRepository: MemeRepository  // <- se inyecta aquí, no en main.ts
-): void {
-```
-
-
 
 ## Permisos de Discord requeridos
 
