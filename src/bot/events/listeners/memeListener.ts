@@ -1,22 +1,20 @@
-import { Events, type Client, type Message } from "discord.js";
-import type {MemeSettings, MemeRewardSettings, SettingsManager } from "../../core/types.js";
-import { MemeRepository } from "../../data/types.js";
-import { 
-  hasMediaAttachment, 
+import type { Message } from "discord.js";
+import type { MemeSettings, MemeRewardSettings } from "../../../core/types.js";
+import type { MemeRepository } from "../../../data/types.js";
+import {
+  hasMediaAttachment,
   selectEmojis,
   hasReachedGoal,
   buildRewardMessage,
-} from "../../features/meme.js";
+} from "../../../features/meme.js";
 
-async function handleMemeFeature(
+export async function handleMeme(
   message: Message,
   config: MemeSettings
 ): Promise<void> {
   if (!config.channelId || message.channelId !== config.channelId) return;
 
-  const contentTypes = [...message.attachments.values()].map(
-    (a) => a.contentType
-  );
+  const contentTypes = [...message.attachments.values()].map((a) => a.contentType);
   const hasMedia = hasMediaAttachment(contentTypes);
 
   if (config.autoReact.enabled && hasMedia) {
@@ -32,19 +30,16 @@ async function handleMemeFeature(
   }
 }
 
-async function handleMemeRewardFeature(
+export async function handleMemeReward(
   message: Message,
   config: MemeRewardSettings,
   memeConfig: MemeSettings,
   memeRepository: MemeRepository
 ): Promise<void> {
   if (!config.enabled || !config.roleId || !message.guildId) return;
-
   if (!memeConfig.channelId || message.channelId !== memeConfig.channelId) return;
 
-  const contentTypes = [...message.attachments.values()].map(
-    (a) => a.contentType
-  );
+  const contentTypes = [...message.attachments.values()].map((a) => a.contentType);
   if (!hasMediaAttachment(contentTypes)) return;
 
   const { count } = await memeRepository.increment(message.guildId, message.author.id);
@@ -66,30 +61,4 @@ async function handleMemeRewardFeature(
   if (message.channel.isTextBased() && !message.channel.isDMBased()) {
     await message.channel.send(rewardMessage);
   }
-}
-
-export function registerMessageCreateEvent(
-  client: Client,
-  settingsManager: SettingsManager,
-  memeRepository: MemeRepository
-): void {
-  client.on(Events.MessageCreate, async (message) => {
-    if (message.author.bot) return;
-    if (!message.guildId) return;
-
-    const settings = await settingsManager.getSettings(message.guildId);
-
-    await handleMemeFeature(message, settings.meme).catch((err) => {
-      console.error("[memeFeature] Error handling message:", err);
-    });
-
-    await handleMemeRewardFeature(message, settings.memeReward, settings.meme, memeRepository).catch((err) => {
-      console.error("[memeRewardFeature] Error handling message:", err);
-    });
-
-    // next feature
-    // await handle<NameFeature>(message, settings.<NameFeature>).catch((err) => {
-    //   console.error("[<NameFeature>Feature] Error handling message:", err);
-    // });
-  });
 }
