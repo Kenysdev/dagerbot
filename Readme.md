@@ -94,7 +94,7 @@ Si no defines `OPENAI_SYSTEM_PROMPT`, se usa `src/config/systemPrompt.ts` por de
 - `src/features/` lógica de características independiente de Discord.
 - `src/config/settingsManager.ts` configuración dinámica por servidor.
 - `src/data/` capa de datos — proveedores, repositorios y contratos.
-- `data/bot.db` base de datos SQLite generada automáticamente al arrancar.
+- MongoDB almacena la configuración y los contadores persistentes.
 
 ## Extensibilidad
 

@@ -23,7 +23,7 @@ Nueva característica
 
 ## Módulo base 1 — Settings Manager
 
-Almacena la configuración de cada servidor como una fila JSON versionada en SQLite,
+Almacena la configuración de cada servidor como una fila JSON versionada en MongoDB,
 indexada por `guildId`. Una fila por servidor — cada fila contiene la configuración
 completa de ese servidor, más un número de `version` para soporte de migraciones futuras.
 
@@ -190,8 +190,8 @@ export type WelcomeRepository = {
 };
 ```
 
-2. Crear su implementación en `src/data/repositories/sqliteWelcomeRepository.ts`
-siguiendo el mismo patrón que `sqliteSettingsRepository.ts`.
+2. Crear su implementación en `src/data/repositories/mongoWelcomeRepository.ts`
+siguiendo el mismo patrón que `mongoSettingsRepository.ts`.
 
 3. Agregarlo en `src/data/index.ts`:
 ```typescript
@@ -201,7 +201,7 @@ export type DataLayer = {
 };
 
 export async function createDataLayer(): Promise<DataLayer> {
-  const provider = createSqliteProvider();
+  const provider = createMongoProvider();
   await provider.initialize();
   return {
     settingsRepository: createSettingsRepository(provider),
@@ -220,7 +220,7 @@ El mantenedor decide cuál proveedor queda como default en `main`.
 
 Crear un archivo en `src/data/providers/` implementando el contrato `DbProvider`
 de `types.ts`. Luego crear las implementaciones de repositorio correspondientes
-en `src/data/repositories/`. Ver `sqliteSettingsRepository` como referencia.
+en `src/data/repositories/`. Ver `mongoSettingsRepository` como referencia.
 
 ## Permisos de Discord requeridos
 

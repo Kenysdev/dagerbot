@@ -40,7 +40,7 @@ async function main() {
   });
 
   const dataLayer = await createDataLayer();
-  const settingsManager = createSettingsManager(dataLayer.settingsRepository);
+  const settingsManager = await createSettingsManager(dataLayer.settingsRepository);
 
   const app = buildApp({ config, chatService });
 

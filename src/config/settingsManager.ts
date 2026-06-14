@@ -57,10 +57,11 @@ function mergeDefaults<T>(defaults: T, data: unknown): T {
 
 type StoredRow = { version: number; data: AppSettings };
 
-export function createSettingsManager(repository: SettingsRepository): SettingsManager {
-
-  // Repair outdated configs before the bot starts serving requests
-  repository.repairAll((raw) => {
+export async function createSettingsManager(
+  repository: SettingsRepository
+): Promise<SettingsManager> {
+  // Repair outdated configs before the bot starts serving requests.
+  await repository.repairAll((raw) => {
     const parsed = JSON.parse(raw) as StoredRow | AppSettings;
     // Support both old format (raw AppSettings) and new format ({ version, data })
     const rawData = "data" in parsed ? parsed.data : parsed;

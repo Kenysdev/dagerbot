@@ -23,7 +23,7 @@ New feature
 
 ## Core 1 — Settings Manager
 
-Stores each guild's configuration as a versioned JSON row in SQLite, indexed by `guildId`.
+Stores each guild's configuration as a versioned JSON row in MongoDB, indexed by `guildId`.
 One row per server — each row holds the complete configuration for that server,
 plus a `version` number for future migration support.
 
@@ -189,8 +189,8 @@ export type WelcomeRepository = {
 };
 ```
 
-2. Create its implementation in `src/data/repositories/sqliteWelcomeRepository.ts`
-following the same pattern as `sqliteSettingsRepository.ts`.
+2. Create its implementation in `src/data/repositories/mongoWelcomeRepository.ts`
+following the same pattern as `mongoSettingsRepository.ts`.
 
 3. Add it to `src/data/index.ts`:
 ```typescript
@@ -200,7 +200,7 @@ export type DataLayer = {
 };
 
 export async function createDataLayer(): Promise<DataLayer> {
-  const provider = createSqliteProvider();
+  const provider = createMongoProvider();
   await provider.initialize();
   return {
     settingsRepository: createSettingsRepository(provider),
@@ -219,7 +219,7 @@ The maintainer decides which provider is the default in `main`.
 
 Create a new file in `src/data/providers/` implementing the `DbProvider` contract
 from `types.ts`. Then create the corresponding repository implementations in
-`src/data/repositories/`. See `sqliteSettingsRepository` as reference.
+`src/data/repositories/`. See `mongoSettingsRepository` as reference.
 
 ## Required Discord permissions
 

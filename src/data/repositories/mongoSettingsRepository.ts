@@ -1,24 +1,70 @@
-// src/data/repositories/mongoSettingsRepository.ts
-
+import mongoose, { Schema } from "mongoose";
+import type { DbProvider } from "../types.js";
 import type { SettingsRepository } from "../types.js";
-import type { AppSettings } from "../../core/types.js";
 
-/**
- * MongoDB settings repository — to be implemented.
- *
- * Must implement Repository<AppSettings> using the MongoDB provider.
- * Follow the same pattern as settingsRepository.ts.
- *
- * Steps to implement:
- *   1. Import and use the MongoDB client from the mongo provider
- *   2. Implement findById() — find guild settings by guildId
- *   3. Implement save() — upsert guild settings by guildId
- *   4. Implement repairAll() — repair all guild configs on startup
- *   5. Update createSettingsManager() to use this repository
- *      when provider.name === "mongo"
- *
- * See settingsRepository.ts as reference implementation.
- */
-export function createSettingsRepository(): SettingsRepository {
-  throw new Error("MongoDB settings repository not yet implemented.");
+type SettingsDocument = {
+  guildId: string;
+  settings: string;
+  updatedAt: number;
+};
+
+const settingsSchema = new Schema<SettingsDocument>(
+  {
+    guildId: { type: String, required: true, unique: true, index: true },
+    settings: { type: String, required: true },
+    updatedAt: { type: Number, required: true },
+  },
+  {
+    collection: "guild_settings",
+    versionKey: false,
+  }
+);
+
+const SettingsModel =
+  mongoose.models.GuildSettings ??
+  mongoose.model<SettingsDocument>("GuildSettings", settingsSchema);
+
+export function createSettingsRepository(_provider: DbProvider): SettingsRepository {
+  return {
+    findById: async (guildId) => {
+      const row = (await SettingsModel.findOne({ guildId })
+        .select({ settings: 1, _id: 0 })
+        .lean()) as Pick<SettingsDocument, "settings"> | null;
+      return row?.settings ?? null;
+    },
+
+    save: async (guildId, raw) => {
+      const now = Date.now();
+      await SettingsModel.updateOne(
+        { guildId },
+        {
+          $set: { settings: raw, updatedAt: now },
+          $setOnInsert: { guildId },
+        },
+        { upsert: true }
+      );
+    },
+
+    repairAll: async (repairFn) => {
+      const rows = (await SettingsModel.find()
+        .select({ guildId: 1, settings: 1, _id: 0 })
+        .lean()) as Array<Pick<SettingsDocument, "guildId" | "settings">>;
+
+      for (const row of rows) {
+        try {
+          const repaired = repairFn(row.settings);
+          await SettingsModel.updateOne(
+            { guildId: row.guildId },
+            {
+              $set: { settings: repaired, updatedAt: Date.now() },
+              $setOnInsert: { guildId: row.guildId },
+            },
+            { upsert: true }
+          );
+        } catch {
+          console.error(`[settings] Could not repair guild ${row.guildId} - skipping.`);
+        }
+      }
+    },
+  };
 }

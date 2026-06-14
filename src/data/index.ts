@@ -1,10 +1,7 @@
-// To use a different provider, switch to the corresponding branch.
-// See README for available branches and deployment instructions.
-
 import type { SettingsRepository, MemeRepository } from "./types.js";
-import { createSqliteProvider } from "./providers/sqlite.js";
-import { createSettingsRepository } from "./repositories/sqliteSettingsRepository.js";
-import { createMemeRepository } from "./repositories/sqliteMemeRepository.js";
+import { createMongoProvider } from "./providers/mongo.js";
+import { createSettingsRepository } from "./repositories/mongoSettingsRepository.js";
+import { createMemeRepository } from "./repositories/mongoMemeRepository.js";
 
 export type DataLayer = {
   settingsRepository: SettingsRepository;
@@ -13,9 +10,9 @@ export type DataLayer = {
 };
 
 export async function createDataLayer(): Promise<DataLayer> {
-  const provider = createSqliteProvider();
+  const provider = createMongoProvider();
   await provider.initialize();
-  console.log("[db] Using provider: sqlite");
+  console.log("[db] Using provider: mongo");
 
   return {
     settingsRepository: createSettingsRepository(provider),
