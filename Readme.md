@@ -78,10 +78,31 @@ HISTORY_LIMIT=10
 SESSION_TTL_SECONDS=3600
 RATE_LIMIT_IP_PER_MIN=60
 RATE_LIMIT_SESSION_PER_MIN=100
-# REDIS_URL=redis://localhost:6379
+MONGODB_URI=mongodb://localhost:27017/dagerbot
 ```
 
 Si no defines `OPENAI_SYSTEM_PROMPT`, se usa `src/config/systemPrompt.ts` por defecto.
+
+## Migración de chats
+
+Los historiales ahora viven en Mongo, en la colección `chats`, con un documento por sesión.
+
+Comando:
+
+```bash
+pnpm migrate:chats
+```
+
+Opciones:
+
+- `--dry-run` para simular sin escribir en Mongo.
+- `--delete-source` para borrar la clave de origen después de migrarla, solo si todavía tienes datos viejos por mover.
+
+Ejemplo:
+
+```bash
+pnpm migrate:chats -- --dry-run
+```
 
 ## Arquitectura
 
@@ -103,6 +124,6 @@ Ver [docs/extensibility-es.md](docs/extensibility-es.md) para la guía completa.
 
 ## Notas
 
-- Historial se guarda en memoria o Redis (TTL) según `REDIS_URL`.
+- Historial se guarda en Mongo en la colección `chats`.
 - Rate limit por IP y por sesión.
 - Entendiste la wea?

@@ -7,6 +7,7 @@
     "build": "tsc",
     "build:watch": "tsc -w",
     "dev": "tsx watch src/main.ts",
+    "migrate:chats": "tsx src/scripts/migrateChatsToMongo.ts",
     "start": "node dist/main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -19,8 +20,7 @@
     "dotenv": "^17.2.2",
     "fastify": "^5.8.4",
     "mongoose": "^9.7.0",
-    "openai": "^6.32.0",
-    "redis": "^5.11.0"
+    "openai": "^6.32.0"
   },
   "devDependencies": {
     "@types/node": "^24.12.0",
