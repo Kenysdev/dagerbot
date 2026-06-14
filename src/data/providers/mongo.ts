@@ -1,16 +1,25 @@
+import mongoose from "mongoose";
 import type { DbProvider } from "../types.js";
 
-/**
- * MongoDB provider.
- *
- * Implement this provider to use MongoDB as the database.
- * Required dependency: mongoose or mongodb (add to package.json)
- *
- * Must return an object that extends DbProvider and exposes
- * the MongoDB client/connection for repositories to use.
- *
- * See sqlite.ts as reference implementation.
- */
+const MONGO_URI =
+  process.env.MONGODB_URI ?? process.env.MONGO_URL ?? process.env.DATABASE_URL ?? "";
+
 export function createMongoProvider(): DbProvider {
-  throw new Error("MongoDB provider not yet implemented.");
+  return {
+    name: "mongo",
+
+    initialize: async () => {
+      if (!MONGO_URI) {
+        throw new Error("MONGODB_URI is required.");
+      }
+
+      if (mongoose.connection.readyState === 1) {
+        console.log("[mongo] Already connected.");
+        return;
+      }
+
+      await mongoose.connect(MONGO_URI);
+      console.log("[mongo] Connected.");
+    },
+  };
 }
