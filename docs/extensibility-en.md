@@ -11,18 +11,19 @@ It is intended for contributors who want to add new features.
 New feature
   ├── reads config    →  Settings Manager   (src/config/settingsManager.ts)
   ├── adds a command  →  Command Manager    (src/bot/commands/commandManager.ts)
-  └── handles events  →  Event Dispatcher   (src/bot/events/)
+  ├── handles events  →  Event Dispatcher   (src/bot/events/eventDispatcher.ts)
+  └── persists data   →  Data Layer         (src/data/)
 ```
 
 > [!IMPORTANT]
-> The three core modules are never modified when adding a new feature.
+> The four core modules are never modified when adding a new feature.
 > They are only **extended** — a new entry is added, nothing existing is changed.
 
 ---
 
 ## Core 1 — Settings Manager
 
-Stores each guild's configuration as a versioned JSON row in SQLite, indexed by `guildId`.
+Stores each guild's configuration as a versioned JSON row in MongoDB, indexed by `guildId`.
 One row per server — each row holds the complete configuration for that server,
 plus a `version` number for future migration support.
 
@@ -44,11 +45,21 @@ interaction routing from a single place.
 **Adding a new top-level command (e.g. `/poll`):**
 
 1. Create `src/bot/commands/poll/index.ts` — export `createPollCommand(settingsManager)`.
-2. Add one line in `src/bot/discordBot.ts`:
+2. Add the import and the catalog entry in `src/bot/commands/commandManager.ts`:
 
 ```typescript
-commands.add(createPollCommand(settingsManager));
+// at the top of commandManager.ts
+import { createPollCommand } from "./poll/index.js"; // <- add here
+
+// --- Command catalog: add new commands here only ---
+[
+  createConfigCommand(deps.settingsManager),
+  createRankCommand({ memeRepository: deps.dataLayer.memeRepository }),
+  createPollCommand(deps.settingsManager), // <- add here
+].forEach((cmd) => commands.set(cmd.name, cmd));
 ```
+
+`discordBot.ts` is never modified when adding a new command.
 
 **Adding a subcommand to `/config`:**
 
@@ -75,56 +86,62 @@ yourFeatureSubcommand(builder, subcommands);
 
 ## Core 3 — Event Dispatcher
 
-One file per Discord event type. Each file contains a single listener that delegates
-to every feature that needs that event.
+Two files handle all events with business logic:
 
-**Never register a new `client.on()` call outside these files.**
+- `src/bot/events/eventDispatcher.ts` — registers all `client.on()` calls with business logic and delegates to listeners
+- `src/bot/events/listeners/` — one file per feature, per event
 
-Current event files:
+Infrastructure events (`ClientReady`, `Error`, `InteractionCreate`) stay in `discordBot.ts` — they are pure bot setup with no business logic and will never grow.
 
-| File | Discord event | Used by |
+**Rule: never register a new `client.on()` with business logic outside `eventDispatcher.ts`.**
+
+Current listeners:
+
+| File | Event | Feature |
 |---|---|---|
-| `src/bot/events/onMessageCreate.ts` | `MessageCreate` | Meme module |
+| `src/bot/events/listeners/memeListener.ts` | `MessageCreate` | Meme module + reward |
+| `src/bot/events/listeners/chatAiListener.ts` | `MessageCreate` | AI chat |
 
 **Adding a feature to an existing event:**
 
-Open the existing file `src/bot/events/onMessageCreate.ts` and add directly inside it:
-
-1. A private handler function at the top of the file
-2. A call to that function inside the existing listener
+1. Create `src/bot/events/listeners/yourFeatureListener.ts`:
 
 ```typescript
-// src/bot/events/onMessageCreate.ts (existing file — add inside it)
+import type { Message } from "discord.js";
+import type { YourFeatureSettings } from "../../../core/types.js";
 
-// Step 1: add your private handler function near the top
-async function handleYourFeature(
+export async function handleYourFeature(
   message: Message,
   config: YourFeatureSettings
 ): Promise<void> {
   if (!config.enabled) return;
   // ...your logic here
 }
+```
 
-// Step 2: call it inside the existing listener, after the current handlers
-// (the listener already exists — just add the line below inside it)
+2. Import and call it in `eventDispatcher.ts`:
+
+```typescript
+import { handleYourFeature } from "./listeners/yourFeatureListener.js";
+
+// inside the MessageCreate listener:
 await handleYourFeature(message, settings.yourFeature).catch((err) => {
   console.error("[yourFeature] Error:", err);
 });
 ```
 
-The Discord event (`Events.MessageCreate`) is already registered — you are extending
-the existing listener, not creating a new one.
+`discordBot.ts` is never modified when adding a new feature to an existing event.
 
 **Adding a feature that needs a new event:**
 
-Create a new file for that event type. Example — greeting new members on join:
+Add a new `client.on()` block inside `eventDispatcher.ts` and create the corresponding listener file. Example — greeting new members on join:
 
 ```typescript
-// src/bot/events/onGuildMemberAdd.ts
-import { Events, type Client, type GuildMember } from "discord.js";
-import type { SettingsManager } from "../../core/types.js";
+// src/bot/events/listeners/welcomeListener.ts
+import type { GuildMember } from "discord.js";
+import type { WelcomeSettings } from "../../../core/types.js";
 
-async function handleWelcomeFeature(
+export async function handleWelcome(
   member: GuildMember,
   config: WelcomeSettings
 ): Promise<void> {
@@ -133,121 +150,76 @@ async function handleWelcomeFeature(
   if (!channel?.isTextBased()) return;
   await channel.send(config.message.replace("{user}", member.displayName));
 }
+```
 
-export function registerGuildMemberAddEvent(
-  client: Client,
-  settingsManager: SettingsManager
-): void {
-  client.on(Events.GuildMemberAdd, async (member) => {
-    const settings = await settingsManager.getSettings(member.guild.id);
-    await handleWelcomeFeature(member, settings.welcome).catch((err) => {
-      console.error("[welcomeFeature] Error:", err);
-    });
+```typescript
+// src/bot/events/eventDispatcher.ts — add a new client.on() block
+import { handleWelcome } from "./listeners/welcomeListener.js";
+
+client.on(Events.GuildMemberAdd, async (member) => {
+  const settings = await settingsManager.getSettings(member.guild.id);
+  await handleWelcome(member, settings.welcome).catch((err) => {
+    console.error("[welcomeFeature] Error:", err);
   });
-}
+});
 ```
 
-Register the new event file in `src/bot/discordBot.ts`:
-add the import at the top of the file:
-
-```typescript
-import { registerGuildMemberAddEvent } from "./events/onGuildMemberAdd.js";
-```
-
-Then call it after registerMessageCreateEvent:
-
-```typescript
-registerGuildMemberAddEvent(client, settingsManager);
-```
+`discordBot.ts` is never modified.
 
 ---
 
-## Step-by-step: adding a new feature
+## Core 4 — Data Layer
 
-### 1. Types — `src/core/types.ts`
+Centralized data persistence layer. Any feature that needs to store data
+uses this layer instead of connecting to the database directly.
 
+**Key files:**
+- `src/data/types.ts` — contracts for providers and repositories
+- `src/data/index.ts` — assembles and injects all repositories
+- `src/data/providers/` — one file per database provider
+- `src/data/repositories/` — one file per feature, per provider
+
+**When adding a feature that needs to persist data:**
+
+1. Add its repository contract to `src/data/types.ts`:
 ```typescript
-export type WelcomeSettings = {
-  enabled: boolean;
-  channelId: string;
-  message: string;
-};
-
-export type AppSettings = {
-  meme: MemeSettings;
-  welcome: WelcomeSettings; // <- add here
+export type WelcomeRepository = {
+  findByGuild: (guildId: string) => Promise<WelcomeRecord | null>;
+  save: (guildId: string, data: WelcomeRecord) => Promise<void>;
 };
 ```
 
-### 2. Defaults — `src/config/settingsManager.ts`
+2. Create its implementation in `src/data/repositories/mongoWelcomeRepository.ts`
+following the same pattern as `mongoSettingsRepository.ts`.
 
+3. Add it to `src/data/index.ts`:
 ```typescript
-function defaultSettings(): AppSettings {
+export type DataLayer = {
+  settingsRepository: SettingsRepository;
+  welcomeRepository: WelcomeRepository; // <- add here
+};
+
+export async function createDataLayer(): Promise<DataLayer> {
+  const provider = createMongoProvider();
+  await provider.initialize();
   return {
-    meme: { /* ... */ },
-    welcome: {
-      enabled: false,
-      channelId: "",
-      message: "Welcome, {user}!",
-    },
+    settingsRepository: createSettingsRepository(provider),
+    welcomeRepository: createWelcomeRepository(provider), // <- add here
   };
 }
 ```
 
-### 3. Feature logic — `src/features/welcome.ts`
+**Provider strategy:**
 
-Pure functions only. No discord.js imports.
+Each database provider has its own branch. The only difference between branches
+is `src/data/index.ts` and `package.json` — everything else is identical.
+The maintainer decides which provider is the default in `main`.
 
-```typescript
-export function buildWelcomeMessage(template: string, username: string): string {
-  return template.replace("{user}", username);
-}
-```
+**Adding a new provider:**
 
-### 4. Event — `src/bot/events/onGuildMemberAdd.ts`
-
-Create the file as shown in the Core 3 section above.
-Register it in `discordBot.ts` with one line.
-
-### 5. Subcommand — `src/bot/commands/config/subcommands/welcome.ts`
-
-```typescript
-export function welcomeSubcommand(
-  builder: SlashCommandBuilder,
-  handlers: SubcommandMap
-): void {
-  builder.addSubcommand((sub) =>
-    sub.setName("welcome").setDescription("View or update welcome settings")
-  );
-  handlers.set("welcome", handleWelcome);
-}
-
-async function handleWelcome(
-  interaction: ChatInputCommandInteraction,
-  settingsManager: SettingsManager
-): Promise<void> {
-  if (!interaction.guildId) {
-    await interaction.reply({
-      content: "This command only works in a server.",
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
-  }
-  // read options → clone settings → modify → saveSettings → reply
-}
-```
-
->[!IMPORTANT]
->For the feature to appear in /config show, add its status in the show.ts handler following the same pattern used for meme.
-
-### 6. Register — `src/bot/commands/config/index.ts`
-
-```typescript
-import { welcomeSubcommand } from "./subcommands/welcome.js";
-welcomeSubcommand(builder, subcommands);
-```
-
----
+Create a new file in `src/data/providers/` implementing the `DbProvider` contract
+from `types.ts`. Then create the corresponding repository implementations in
+`src/data/repositories/`. See `mongoSettingsRepository` as reference.
 
 ## Required Discord permissions
 
@@ -260,6 +232,7 @@ welcomeSubcommand(builder, subcommands);
 | `Send Messages` | AI chat responses |
 | `Add Reactions` | Meme module — auto-react |
 | `Manage Messages` | Meme module — media-only mode |
+| `Manage Roles` | Meme reward — assign role when goal is reached |
 | `applications.commands` | Slash command registration |
 
 > [!WARNING]

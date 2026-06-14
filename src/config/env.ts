@@ -8,7 +8,6 @@ export type AppConfig = {
   rateLimitIpPerMin: number;
   rateLimitSessionPerMin: number;
   openAiModel: string;
-  redisUrl: string;
 };
 
 function readNumber(name: string, fallback: number) {
@@ -27,7 +26,6 @@ export function loadConfig(): AppConfig {
     rateLimitIpPerMin: readNumber("RATE_LIMIT_IP_PER_MIN", 60),
     rateLimitSessionPerMin: readNumber("RATE_LIMIT_SESSION_PER_MIN", 100),
     openAiModel: process.env.OPENAI_MODEL || "gpt-4.1-mini",
-    redisUrl: process.env.REDIS_URL || "",
   };
 }
 

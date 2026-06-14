@@ -29,7 +29,9 @@ Backend en TypeScript con Fastify para chatbot de discord en el antro usando Ope
 - En servidores responde si mencionas al bot o si usas prefijo (por defecto `!`).
 - Usa el mismo backend/servicio interno que `/chat`.
 - `/config show` — muestra el estado de todos los módulos.
-- `/config meme` — configura el módulo de memes (canal, reacciones, modo solo-media).
+- `/config meme` — configura el módulo de memes (canal, reacciones, modo solo-media, random-react).
+- `/config meme-reward` — configura la recompensa por acumulación de memes (rol, meta, mensaje).
+- `/rank meme` — muestra el top de usuarios con más memes publicados, navegable por páginas.
 
 Variables de entorno:
 
@@ -54,6 +56,7 @@ Al invitar el bot, asegurarse de incluir los siguientes permisos y scopes:
 - `Send Messages`
 - `Add Reactions`
 - `Manage Messages`
+- `Manage Roles`
 
 > [!WARNING]
 > Si se agrega una característica nueva que requiera permisos adicionales:
@@ -75,10 +78,31 @@ HISTORY_LIMIT=10
 SESSION_TTL_SECONDS=3600
 RATE_LIMIT_IP_PER_MIN=60
 RATE_LIMIT_SESSION_PER_MIN=100
-# REDIS_URL=redis://localhost:6379
+MONGODB_URI=mongodb://localhost:27017/dagerbot
 ```
 
 Si no defines `OPENAI_SYSTEM_PROMPT`, se usa `src/config/systemPrompt.ts` por defecto.
+
+## Migración de chats
+
+Los historiales ahora viven en Mongo, en la colección `chats`, con un documento por sesión.
+
+Comando:
+
+```bash
+pnpm migrate:chats
+```
+
+Opciones:
+
+- `--dry-run` para simular sin escribir en Mongo.
+- `--delete-source` para borrar la clave de origen después de migrarla, solo si todavía tienes datos viejos por mover.
+
+Ejemplo:
+
+```bash
+pnpm migrate:chats -- --dry-run
+```
 
 ## Arquitectura
 
@@ -89,8 +113,9 @@ Si no defines `OPENAI_SYSTEM_PROMPT`, se usa `src/config/systemPrompt.ts` por de
 - `src/infra/` clientes externos (OpenAI).
 - `src/bot/` cliente de Discord, comandos slash y eventos.
 - `src/features/` lógica de características independiente de Discord.
-- `src/config/settingsManager.ts` configuración dinámica por servidor (SQLite).
-- `data/bot.db` base de datos SQLite generada automáticamente al arrancar.
+- `src/config/settingsManager.ts` configuración dinámica por servidor.
+- `src/data/` capa de datos — proveedores, repositorios y contratos.
+- MongoDB almacena la configuración y los contadores persistentes.
 
 ## Extensibilidad
 
@@ -99,6 +124,6 @@ Ver [docs/extensibility-es.md](docs/extensibility-es.md) para la guía completa.
 
 ## Notas
 
-- Historial se guarda en memoria o Redis (TTL) según `REDIS_URL`.
+- Historial se guarda en Mongo en la colección `chats`.
 - Rate limit por IP y por sesión.
 - Entendiste la wea?

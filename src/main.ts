@@ -1,12 +1,12 @@
 import { buildApp } from "./app";
 import { loadConfig } from "./config/env";
-import { createMemorySessionStore } from "./core/memorySessionStore";
-import { createRedisSessionStore } from "./core/redisSessionStore";
 import { createFixedWindowLimiter } from "./core/rateLimit";
+import { createMongoSessionStore } from "./core/mongoSessionStore";
 import { createOpenAIClient } from "./infra/openaiClient";
 import { createChatService } from "./services/chatService";
 import { startDiscordBot } from "./bot/discordBot";
-import { createSettingsManager } from "./config/settingsManager.js"
+import { createDataLayer } from "./data/index.js";
+import { createSettingsManager } from "./config/settingsManager.js";
 
 async function main() {
   if (!process.env.OPENAI_API_KEY) {
@@ -16,16 +16,12 @@ async function main() {
   const config = loadConfig();
   const openai = createOpenAIClient(process.env.OPENAI_API_KEY);
 
-  const sessionStore = config.redisUrl
-    ? await createRedisSessionStore({
-        historyLimit: config.historyLimit,
-        sessionTtlSeconds: config.sessionTtlSeconds,
-        redisUrl: config.redisUrl,
-      })
-    : createMemorySessionStore({
-        historyLimit: config.historyLimit,
-        sessionTtlSeconds: config.sessionTtlSeconds,
-      });
+  const dataLayer = await createDataLayer();
+  const settingsManager = await createSettingsManager(dataLayer.settingsRepository);
+  const sessionStore = createMongoSessionStore({
+    historyLimit: config.historyLimit,
+    sessionTtlSeconds: config.sessionTtlSeconds,
+  });
 
   const allowIp = createFixedWindowLimiter(config.rateLimitIpPerMin);
   const allowSession = createFixedWindowLimiter(config.rateLimitSessionPerMin);
@@ -38,14 +34,12 @@ async function main() {
     allowSession,
   });
 
-  const settingsManager = createSettingsManager();
-
   const app = buildApp({ config, chatService });
 
   await app.listen({ port: config.port, host: "0.0.0.0" });
   app.log.info(`HTTP listening on port ${config.port}`);
 
-  await startDiscordBot({ chatService, settingsManager });
+  await startDiscordBot({ chatService, settingsManager, dataLayer });
 }
 
 main().catch((err) => {
