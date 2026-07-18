@@ -7,6 +7,7 @@
     "build": "tsc",
     "build:watch": "tsc -w",
     "dev": "tsx watch src/main.ts",
+    "commands:clear": "tsx src/scripts/clearCommands.ts",
     "start": "node dist/main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
