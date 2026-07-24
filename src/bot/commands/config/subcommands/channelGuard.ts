@@ -41,8 +41,26 @@ export function channelGuardSubcommand(
       )
       .addRoleOption((opt) =>
         opt
+          .setName("add-ignored-role-2")
+          .setDescription("Second role to whitelist from channel guard")
+          .setRequired(false)
+      )
+      .addRoleOption((opt) =>
+        opt
+          .setName("add-ignored-role-3")
+          .setDescription("Third role to whitelist from channel guard")
+          .setRequired(false)
+      )
+      .addRoleOption((opt) =>
+        opt
           .setName("remove-ignored-role")
           .setDescription("Role to remove from channel guard whitelist")
+          .setRequired(false)
+      )
+      .addStringOption((opt) =>
+        opt
+          .setName("ignored-roles")
+          .setDescription("Space or comma-separated role mentions/IDs to add (e.g. @Role1 @Role2)")
           .setRequired(false)
       )
   );
@@ -52,8 +70,14 @@ export function channelGuardSubcommand(
 
     const channel = interaction.options.getChannel("channel");
     const statusStr = interaction.options.getString("status");
-    const addRole = interaction.options.getRole("add-ignored-role");
+    const addRoles = [
+      interaction.options.getRole("add-ignored-role"),
+      interaction.options.getRole("add-ignored-role-2"),
+      interaction.options.getRole("add-ignored-role-3"),
+    ].filter((r): r is NonNullable<typeof r> => r !== null);
+
     const removeRole = interaction.options.getRole("remove-ignored-role");
+    const rawRolesStr = interaction.options.getString("ignored-roles");
 
     const current = await settingsManager.getSettings(interaction.guildId);
     let updatedGuard = { ...current.channelGuard };
@@ -72,13 +96,23 @@ export function channelGuardSubcommand(
       hasChanges = true;
     }
 
-    if (addRole) {
-      if (!updatedGuard.ignoredRoleIds.includes(addRole.id)) {
-        updatedGuard.ignoredRoleIds = [...updatedGuard.ignoredRoleIds, addRole.id];
-        changes.push(`Added <@&${addRole.id}> to ignored roles`);
+    for (const role of addRoles) {
+      if (!updatedGuard.ignoredRoleIds.includes(role.id)) {
+        updatedGuard.ignoredRoleIds = [...updatedGuard.ignoredRoleIds, role.id];
+        changes.push(`Added <@&${role.id}> to ignored roles`);
         hasChanges = true;
-      } else {
-        changes.push(`Role <@&${addRole.id}> is already in the ignored list`);
+      }
+    }
+
+    if (rawRolesStr) {
+      // Parse role mentions <@&ID> or raw IDs
+      const matches = rawRolesStr.match(/\d+/g) ?? [];
+      for (const roleId of matches) {
+        if (!updatedGuard.ignoredRoleIds.includes(roleId)) {
+          updatedGuard.ignoredRoleIds = [...updatedGuard.ignoredRoleIds, roleId];
+          changes.push(`Added <@&${roleId}> to ignored roles`);
+          hasChanges = true;
+        }
       }
     }
 
