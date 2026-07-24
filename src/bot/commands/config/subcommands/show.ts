@@ -33,7 +33,7 @@ async function handleShow(
     return;
   }
 
-  const { meme, memeReward } = await settingsManager.getSettings(interaction.guildId);
+  const { meme, memeReward, channelGuard } = await settingsManager.getSettings(interaction.guildId);
 
   await interaction.reply({
     content: [
@@ -51,6 +51,15 @@ async function handleShow(
       `  • role: ${memeReward.roleId ? `<@&${memeReward.roleId}>` : "not set"}`,
       `  • goal: ${memeReward.goal} memes`,
       `  • message: ${memeReward.message || "not set"}`,
+      ``,
+      `🛡️ **channel-guard**`,
+      `  • status: ${channelGuard.enabled ? "✅ on" : "❌ off"}`,
+      `  • channel: ${channelGuard.channelId ? `<#${channelGuard.channelId}>` : "not set"}`,
+      `  • ignored-roles: ${
+        channelGuard.ignoredRoleIds.length > 0
+          ? channelGuard.ignoredRoleIds.map((id) => `<@&${id}>`).join(", ")
+          : "none"
+      }`,
     ].join("\n"),
     flags: MessageFlags.Ephemeral,
   });

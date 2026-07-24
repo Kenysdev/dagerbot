@@ -1,0 +1,37 @@
+import type { Message } from "discord.js";
+import type { ChannelGuardSettings } from "../../../core/types.js";
+
+export async function handleChannelGuard(
+  message: Message,
+  config: ChannelGuardSettings
+): Promise<void> {
+  if (!config.enabled || !config.channelId || !message.guild) return;
+  if (message.channelId !== config.channelId) return;
+
+  // Check if member has an ignored role
+  if (message.member) {
+    const hasIgnoredRole = message.member.roles.cache.some((role) =>
+      config.ignoredRoleIds.includes(role.id)
+    );
+    if (hasIgnoredRole) return;
+  }
+
+  // Delete message first if possible
+  try {
+    if (message.deletable) {
+      await message.delete();
+    }
+  } catch (err) {
+    console.error("[channelGuardListener] Failed to delete message:", err);
+  }
+
+  // Ban user with reason "Spam" and delete messages sent in the specified time frame (default 1h)
+  try {
+    await message.guild.members.ban(message.author.id, {
+      reason: "Spam",
+      deleteMessageSeconds: config.deleteMessageSeconds || 3600,
+    });
+  } catch (err) {
+    console.error("[channelGuardListener] Failed to ban user:", err);
+  }
+}

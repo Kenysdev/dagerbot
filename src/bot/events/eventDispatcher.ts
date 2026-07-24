@@ -4,6 +4,7 @@ import type { DataLayer } from "../../data/index.js";
 import type { ChatService } from "../../services/chatService.js";
 import { handleMeme, handleMemeReward } from "./listeners/memeListener.js";
 import { handleChatAi } from "./listeners/chatAiListener.js";
+import { handleChannelGuard } from "./listeners/channelGuardListener.js";
 
 export function registerEventDispatcher(
   client: Client,
@@ -21,6 +22,10 @@ export function registerEventDispatcher(
 
     if (message.guildId) {
       const settings = await settingsManager.getSettings(message.guildId);
+
+      await handleChannelGuard(message, settings.channelGuard).catch((err) => {
+        console.error("[channelGuardFeature] Error:", err);
+      });
 
       await handleMeme(message, settings.meme).catch((err) => {
         console.error("[memeFeature] Error:", err);

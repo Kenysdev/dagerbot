@@ -32,6 +32,12 @@ function defaultSettings(): AppSettings {
       goal: 50,
       message: "🎉 Congratulations {user}! You’ve reached the goal and earned the {role} role.",
     },
+    channelGuard: {
+      enabled: false,
+      channelId: "",
+      ignoredRoleIds: [],
+      deleteMessageSeconds: 3600,
+    },
   };
 }
 
