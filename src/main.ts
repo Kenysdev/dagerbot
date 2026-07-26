@@ -1,7 +1,6 @@
 import { buildApp } from "./app";
 import { loadConfig } from "./config/env";
 import { createMemorySessionStore } from "./core/memorySessionStore";
-import { createRedisSessionStore } from "./core/redisSessionStore";
 import { createFixedWindowLimiter } from "./core/rateLimit";
 import { createOpenAIClient } from "./infra/openaiClient";
 import { createChatService } from "./services/chatService";
@@ -17,16 +16,10 @@ async function main() {
   const config = loadConfig();
   const openai = createOpenAIClient(process.env.OPENAI_API_KEY);
 
-  const sessionStore = config.redisUrl
-    ? await createRedisSessionStore({
-        historyLimit: config.historyLimit,
-        sessionTtlSeconds: config.sessionTtlSeconds,
-        redisUrl: config.redisUrl,
-      })
-    : createMemorySessionStore({
-        historyLimit: config.historyLimit,
-        sessionTtlSeconds: config.sessionTtlSeconds,
-      });
+  const sessionStore = createMemorySessionStore({
+    historyLimit: config.historyLimit,
+    sessionTtlSeconds: config.sessionTtlSeconds,
+  });
 
   const allowIp = createFixedWindowLimiter(config.rateLimitIpPerMin);
   const allowSession = createFixedWindowLimiter(config.rateLimitSessionPerMin);

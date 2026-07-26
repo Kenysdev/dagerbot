@@ -78,7 +78,6 @@ HISTORY_LIMIT=10
 SESSION_TTL_SECONDS=3600
 RATE_LIMIT_IP_PER_MIN=60
 RATE_LIMIT_SESSION_PER_MIN=100
-# REDIS_URL=redis://localhost:6379
 ```
 
 Si no defines `OPENAI_SYSTEM_PROMPT`, se usa `src/config/systemPrompt.ts` por defecto.
@@ -103,6 +102,6 @@ Ver [docs/extensibility-es.md](docs/extensibility-es.md) para la guía completa.
 
 ## Notas
 
-- Historial se guarda en memoria o Redis (TTL) según `REDIS_URL`.
+- Historial de chat en memoria: efímero, no se persiste. Guarda los últimos `HISTORY_LIMIT` mensajes por sesión, expira tras `SESSION_TTL_SECONDS` de inactividad y se pierde al reiniciar el bot.
 - Rate limit por IP y por sesión.
 - Entendiste la wea?
