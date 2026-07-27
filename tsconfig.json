@@ -10,5 +10,11 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": [
+    "src/data/providers/mongo.ts",
+    "src/data/repositories/mongoMemeRepository.ts",
+    "src/data/repositories/mongoSettingsRepository.ts",
+    "src/core/mongoSessionStore.ts"
+  ]
 }

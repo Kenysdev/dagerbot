@@ -1,6 +1,6 @@
 import { buildApp } from "./app";
 import { loadConfig } from "./config/env";
-import { createMemorySessionStore } from "./core/memorySessionStore";
+import { createSessionStore } from "./core/sessionStoreIndex";
 import { createFixedWindowLimiter } from "./core/rateLimit";
 import { createOpenAIClient } from "./infra/openaiClient";
 import { createChatService } from "./services/chatService";
@@ -16,10 +16,7 @@ async function main() {
   const config = loadConfig();
   const openai = createOpenAIClient(process.env.OPENAI_API_KEY);
 
-  const sessionStore = createMemorySessionStore({
-    historyLimit: config.historyLimit,
-    sessionTtlSeconds: config.sessionTtlSeconds,
-  });
+  const sessionStore = createSessionStore(config);
 
   const allowIp = createFixedWindowLimiter(config.rateLimitIpPerMin);
   const allowSession = createFixedWindowLimiter(config.rateLimitSessionPerMin);
@@ -33,7 +30,7 @@ async function main() {
   });
 
   const dataLayer = await createDataLayer();
-  const settingsManager = createSettingsManager(dataLayer.settingsRepository);
+  const settingsManager = await createSettingsManager(dataLayer.settingsRepository);
 
   const app = buildApp({ config, chatService });
 
