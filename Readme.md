@@ -95,6 +95,45 @@ Si no defines `OPENAI_SYSTEM_PROMPT`, se usa `src/config/systemPrompt.ts` por de
 - `src/data/` capa de datos — proveedores, repositorios y contratos.
 - `data/bot.db` base de datos SQLite generada automáticamente al arrancar.
 
+## Proveedores de datos y ramas
+
+Cada proveedor de base de datos tiene su propia rama. **Desplegar con otro proveedor
+significa desplegar la rama correspondiente** — no hay variable de entorno que lo cambie.
+
+| Rama | Proveedor | Historial de chat |
+|------|-----------|-------------------|
+| `riven/main` | SQLite (`data/bot.db`) | en memoria |
+| `riven/provider-mongo` | MongoDB (`MONGODB_URI`) | MongoDB |
+
+Los archivos de todos los proveedores están presentes en todas las ramas, pero cada
+rama solo compila e instala el suyo: los del proveedor inactivo quedan excluidos del
+build (`tsconfig.json`) y su driver no se instala en producción.
+
+Despliegue:
+
+```bash
+pnpm install --frozen-lockfile   # incluye devDependencies, necesarias para compilar
+pnpm build
+pnpm prune --prod                # elimina las devDependencies
+node dist/main.js
+```
+
+Notas de despliegue:
+
+- **Requisitos:** Node 20 o superior (lo exigen `better-sqlite3` y `mongoose`) y pnpm
+  (`corepack enable` o `npm i -g pnpm`).
+- **Servidor propio (VPS):** los comandos de arriba corren tal cual. Conviene lanzar el proceso
+  con un gestor (systemd, pm2) en lugar de `node` directo, para que sobreviva a reinicios.
+- **PaaS (Railway, Render, etc.):** suelen detectar el lockfile de pnpm y ejecutar install,
+  `build` y `start` por su cuenta; ahí `pnpm prune --prod` es opcional (solo reduce el tamaño).
+- **SQLite necesita sistema de archivos persistente.** En plataformas con almacenamiento
+  efímero (p. ej. Railway sin volumen) los datos se pierden en cada despliegue: montar un
+  volumen o desplegar la rama del proveedor Mongo.
+- **En local:** `pnpm dev` ejecuta el TypeScript directamente, sin compilar. `pnpm start` corre
+  el compilado, así que necesita un `pnpm build` previo.
+
+Detalles del modelo y cómo agregar un proveedor nuevo: [docs/extensibility-es.md](docs/extensibility-es.md).
+
 ## Extensibilidad
 
 El bot tiene una arquitectura modular — agregar nuevas características sin tocar el núcleo.

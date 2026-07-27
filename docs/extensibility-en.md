@@ -211,15 +211,51 @@ export async function createDataLayer(): Promise<DataLayer> {
 
 **Provider strategy:**
 
-Each database provider has its own branch. The only difference between branches
-is `src/data/index.ts` and `package.json` — everything else is identical.
-The maintainer decides which provider is the default in `main`.
+Each database provider has its own branch. Development branches hold the files of
+every provider, but only the active provider is compiled and installed. The
+difference between branches is limited to four files:
+
+- `src/data/index.ts` — which provider wires the data layer
+- `src/core/sessionStoreIndex.ts` — which implementation stores the chat history
+- `tsconfig.json` — `exclude` for the inactive provider's files
+- `package.json` — the driver that gets installed
+
+The inactive provider's files are excluded from the build, so its driver is not
+needed in production. To get editor support while editing them, install it as a
+`devDependency`, which is stripped in production (`pnpm prune --prod`). Exception:
+a driver requiring a native build is omitted entirely on branches that don't use
+it, to avoid risking the build on constrained hosting.
+
+The maintainer decides which provider is the default on the main branch.
 
 **Adding a new provider:**
 
-Create a new file in `src/data/providers/` implementing the `DbProvider` contract
-from `types.ts`. Then create the corresponding repository implementations in
-`src/data/repositories/`. See `sqliteSettingsRepository` as reference.
+1. Create a file in `src/data/providers/` implementing the `DbProvider` contract
+   from `types.ts`, plus the matching repository implementations in
+   `src/data/repositories/`. See `sqliteSettingsRepository` as reference.
+2. Optional: create its session store in `src/core/` implementing the `SessionStore`
+   contract from `sessionStore.ts`. It is optional because chat history is a
+   subsystem independent from the data layer: any branch may keep using
+   `memorySessionStore`, which already exists and needs no database.
+   Write your own when the context should survive restarts, storing it in the same
+   engine as the provider. See `mongoSessionStore.ts` as reference: it shares the
+   data layer's connection but uses its own collection and does not go through the
+   repositories. Either way the history is ephemeral — trimmed to `HISTORY_LIMIT`
+   and expiring after `SESSION_TTL_SECONDS`.
+3. Create the provider branch and adjust the four files listed above.
+4. Enable `rerere` before the first maintenance merge:
+
+```bash
+git config rerere.enabled true
+```
+
+Merges from the main branch into a provider branch always repeat the same
+conflicts (the four configuration files). With `rerere`, Git records how each
+conflict was resolved and re-applies that resolution automatically on subsequent
+merges. It is clone-local configuration: each machine enables it once.
+
+Both indexes (`src/data/index.ts` and `src/core/sessionStoreIndex.ts`) serve the
+same role: the entry point never names a concrete implementation.
 
 ## Required Discord permissions
 
