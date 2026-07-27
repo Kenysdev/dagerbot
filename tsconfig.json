@@ -12,9 +12,8 @@
   },
   "include": ["src"],
   "exclude": [
-    "src/data/providers/mongo.ts",
-    "src/data/repositories/mongoMemeRepository.ts",
-    "src/data/repositories/mongoSettingsRepository.ts",
-    "src/core/mongoSessionStore.ts"
+    "src/data/providers/sqlite.ts",
+    "src/data/repositories/sqliteMemeRepository.ts",
+    "src/data/repositories/sqliteSettingsRepository.ts"
   ]
 }

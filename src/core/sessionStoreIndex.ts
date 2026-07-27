@@ -2,8 +2,8 @@
 // implementation, mirroring the provider pattern in src/data/index.ts.
 //
 // Implementations available in this folder:
-//   - memorySessionStore.ts  (active here — lost on restart)
-//   - mongoSessionStore.ts   (wired on the mongo provider branch — survives restarts)
+//   - mongoSessionStore.ts   (active here — survives restarts)
+//   - memorySessionStore.ts  (wired on the default branch — lost on restart)
 //
 // Both are ephemeral working context, not an archive: history is trimmed to
 // HISTORY_LIMIT and a session expires after SESSION_TTL_SECONDS of inactivity
@@ -14,10 +14,10 @@
 
 import type { AppConfig } from "../config/env";
 import type { SessionStore } from "./sessionStore";
-import { createMemorySessionStore } from "./memorySessionStore";
+import { createMongoSessionStore } from "./mongoSessionStore";
 
 export function createSessionStore(config: AppConfig): SessionStore {
-  return createMemorySessionStore({
+  return createMongoSessionStore({
     historyLimit: config.historyLimit,
     sessionTtlSeconds: config.sessionTtlSeconds,
   });
