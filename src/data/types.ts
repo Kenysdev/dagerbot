@@ -10,7 +10,7 @@ export type DbProvider = {
 export type SettingsRepository = {
   findById: (guildId: string) => Promise<string | null>;
   save: (guildId: string, raw: string) => Promise<void>;
-  repairAll: (repairFn: (raw: string) => string) => void;
+  repairAll: (repairFn: (raw: string) => string) => Promise<void>;
 };
 
 export type MemeCount = {

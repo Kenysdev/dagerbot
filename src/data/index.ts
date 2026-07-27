@@ -1,5 +1,12 @@
-// To use a different provider, switch to the corresponding branch.
-// See README for available branches and deployment instructions.
+// Data layer provider selection — the app entry point never names a concrete
+// provider; it only calls createDataLayer().
+//
+// Providers available in this folder:
+//   - providers/sqlite.ts + repositories/sqlite*  (active here)
+//   - providers/mongo.ts  + repositories/mongo*   (wired on the mongo provider branch)
+//
+// To use a different provider, switch to the corresponding provider branch.
+// See docs/extensibility-en.md for the provider strategy.
 
 import type { SettingsRepository, MemeRepository } from "./types.js";
 import { createSqliteProvider } from "./providers/sqlite.js";

@@ -212,15 +212,51 @@ export async function createDataLayer(): Promise<DataLayer> {
 
 **Estrategia de proveedores:**
 
-Cada proveedor de base de datos tiene su propia rama. La única diferencia entre
-ramas es `src/data/index.ts` y `package.json` — todo lo demás es idéntico.
-El mantenedor decide cuál proveedor queda como default en `main`.
+Cada proveedor de base de datos tiene su propia rama. Las ramas de desarrollo
+contienen los archivos de todos los proveedores, pero solo se compila e instala
+el proveedor activo. La diferencia entre ramas se limita a cuatro archivos:
+
+- `src/data/index.ts` — qué proveedor cablea la capa de datos
+- `src/core/sessionStoreIndex.ts` — qué implementación guarda el historial de chat
+- `tsconfig.json` — `exclude` de los archivos del proveedor inactivo
+- `package.json` — el driver que se instala
+
+Los archivos del proveedor inactivo quedan excluidos del build, así que su driver
+no hace falta en producción. Para tener soporte del editor al editarlos se instala
+como `devDependency`, que se omite en producción (`pnpm prune --prod`). Excepción:
+un driver con compilación nativa se omite por completo en las ramas que no lo usan,
+para no arriesgar el build en hostings limitados.
+
+El mantenedor decide cuál proveedor queda como default en la rama principal.
 
 **Agregar un nuevo proveedor:**
 
-Crear un archivo en `src/data/providers/` implementando el contrato `DbProvider`
-de `types.ts`. Luego crear las implementaciones de repositorio correspondientes
-en `src/data/repositories/`. Ver `sqliteSettingsRepository` como referencia.
+1. Crear un archivo en `src/data/providers/` implementando el contrato `DbProvider`
+   de `types.ts`, y las implementaciones de repositorio correspondientes en
+   `src/data/repositories/`. Ver `sqliteSettingsRepository` como referencia.
+2. Opcional: crear su session store en `src/core/` implementando el contrato
+   `SessionStore` de `sessionStore.ts`. Es opcional porque el historial de chat es
+   un subsistema independiente de la capa de datos: cualquier rama puede seguir
+   usando `memorySessionStore`, que ya existe y no necesita base de datos.
+   Se crea uno propio cuando se quiere que el contexto sobreviva a los reinicios,
+   guardándolo en el mismo motor del proveedor. Ver `mongoSessionStore.ts` como
+   referencia: comparte la conexión de la capa de datos pero usa su propia
+   colección y no pasa por los repositorios. En cualquier caso el historial es
+   efímero — se recorta a `HISTORY_LIMIT` y vence tras `SESSION_TTL_SECONDS`.
+3. Crear la rama del proveedor y ajustar los cuatro archivos listados arriba.
+4. Activar `rerere` antes del primer merge de mantenimiento:
+
+```bash
+git config rerere.enabled true
+```
+
+Los merges desde la rama principal hacia una rama de proveedor repiten siempre los
+mismos conflictos (los cuatro archivos de configuración). Con `rerere`, Git memoriza
+cómo se resolvió cada conflicto y re-aplica esa resolución automáticamente en los
+merges siguientes. Es configuración local del clon: cada máquina lo activa una vez.
+
+Ambos índices (`src/data/index.ts` y `src/core/sessionStoreIndex.ts`) cumplen el
+mismo rol: el punto de arranque nunca nombra una implementación concreta.
 
 ## Permisos de Discord requeridos
 

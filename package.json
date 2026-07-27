@@ -1,6 +1,6 @@
 {
   "name": "dagerbot",
-  "version": "1.4.2",
+  "version": "2.0.0",
   "description": "Backend en TypeScript para chat HTTP con OpenAI y Fastify; bot de Discord multi-servidor.",
   "main": "dist/main.js",
   "scripts": {
@@ -14,6 +14,9 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "better-sqlite3": "^12.9.0",
     "discord.js": "^14.25.1",
@@ -24,10 +27,13 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.12.0",
+    "mongoose": "^9.8.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["better-sqlite3"]
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
+    ]
   }
 }

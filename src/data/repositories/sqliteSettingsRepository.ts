@@ -39,7 +39,7 @@ export function createSettingsRepository(
       upsertStmt.run(guildId, raw, Date.now());
     },
 
-    repairAll: (repairFn) => {
+    repairAll: async (repairFn) => {
       const rows = db
         .prepare<[], { guild_id: string; settings: string }>(
           `SELECT guild_id, settings FROM ${TABLE}`
