@@ -21,25 +21,60 @@ function rowToMemeCount(row: RawRow): MemeCount {
   };
 }
 
+type Db = SqliteProvider["db"];
+
+// STRICT gives the engine the same type guarantees the Mongo side gets from its
+// $jsonSchema validator. WITHOUT ROWID stores rows inside the primary key tree,
+// which suits short rows with a composite text key.
+const CREATE_TABLE = `
+  CREATE TABLE IF NOT EXISTS ${TABLE} (
+    guild_id    TEXT    NOT NULL,
+    user_id     TEXT    NOT NULL,
+    count       INTEGER NOT NULL DEFAULT 0 CHECK (count >= 0),
+    started_at  INTEGER NOT NULL,
+    updated_at  INTEGER NOT NULL,
+    PRIMARY KEY (guild_id, user_id)
+  ) STRICT, WITHOUT ROWID
+`;
+
+// Mirrors the ranking ORDER BY so the query needs no temporary B-tree.
+const CREATE_INDEX = `
+  CREATE INDEX IF NOT EXISTS idx_${TABLE}_leaderboard
+    ON ${TABLE} (guild_id, count DESC, user_id ASC)
+`;
+
+// Transitional, introduced in 2.1.0: tables created before it are neither STRICT
+// nor WITHOUT ROWID, and neither can be added with ALTER TABLE, so the table is
+// rebuilt by moving the old one aside and copying the rows back in.
+//
+// Retiring it is a pure deletion: remove this function and its call in
+// ensureStructure. Nothing else changes.
+function migrateLegacyTable(db: Db): void {
+  const existing = (db.pragma(`table_list('${TABLE}')`) as Array<{ strict?: number }>)[0];
+  if (!existing || existing.strict === 1) return;
+
+  db.transaction(() => {
+    db.exec(`ALTER TABLE ${TABLE} RENAME TO ${TABLE}__legacy`);
+    db.exec(CREATE_TABLE);
+    db.exec(`
+      INSERT INTO ${TABLE} (guild_id, user_id, count, started_at, updated_at)
+      SELECT guild_id, user_id, count, started_at, updated_at FROM ${TABLE}__legacy
+    `);
+    db.exec(`DROP TABLE ${TABLE}__legacy`);
+  })();
+  console.log(`[sqlite] Rebuilt ${TABLE} as a STRICT table.`);
+}
+
+function ensureStructure(db: Db): void {
+  migrateLegacyTable(db);
+  db.exec(CREATE_TABLE);
+  db.exec(CREATE_INDEX);
+}
+
 export function createMemeRepository(provider: SqliteProvider): MemeRepository {
   const { db } = provider;
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS ${TABLE} (
-      guild_id    TEXT NOT NULL,
-      user_id     TEXT NOT NULL,
-      count       INTEGER NOT NULL DEFAULT 0,
-      started_at  INTEGER NOT NULL,
-      updated_at  INTEGER NOT NULL,
-      PRIMARY KEY (guild_id, user_id)
-    )
-  `);
-
-  // Mirrors the ranking ORDER BY, so the query needs no temporary B-tree.
-  db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_${TABLE}_leaderboard
-      ON ${TABLE} (guild_id, count DESC, user_id ASC)
-  `);
+  ensureStructure(db);
 
   const incrementStmt = db.prepare<[string, string, number, number], RawRow>(`
     INSERT INTO ${TABLE} (guild_id, user_id, count, started_at, updated_at)
