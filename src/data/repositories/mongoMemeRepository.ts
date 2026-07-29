@@ -44,19 +44,18 @@ export function createMemeRepository(_provider: DbProvider): MemeRepository {
   return {
     increment: async (guildId, userId) => {
       const now = Date.now();
+
+      // Adding count to $setOnInsert would raise ConflictingUpdateOperators, and
+      // it is not needed: on an upsert, $inc starts from 0. The equality filter
+      // is what puts guildId and userId into the inserted document.
       const row = (await MemeModel.findOneAndUpdate(
         { guildId, userId },
         {
-          $setOnInsert: {
-            guildId,
-            userId,
-            count: 0,
-            startedAt: now,
-          },
+          $setOnInsert: { startedAt: now },
           $inc: { count: 1 },
           $set: { updatedAt: now },
         },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: "after" }
       ).lean()) as MemeDocument | null;
 
       if (!row) {
