@@ -15,6 +15,6 @@
     "src/data/providers/mongo.ts",
     "src/data/repositories/mongoMemeRepository.ts",
     "src/data/repositories/mongoSettingsRepository.ts",
-    "src/core/mongoSessionStore.ts"
+    "src/data/repositories/mongoSessionRepository.ts"
   ]
 }

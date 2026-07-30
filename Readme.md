@@ -104,7 +104,7 @@ Puedes combinar `--global` y `--guild`. Sin argumentos, imprime la ayuda y no ha
 - `src/app.ts` registra rutas y dependencias.
 - `src/http/` controladores y rutas HTTP.
 - `src/services/` lógica de negocio (chat).
-- `src/core/` utilidades y stores de sesión.
+- `src/core/` utilidades compartidas (rate limit, tipos).
 - `src/infra/` clientes externos (OpenAI).
 - `src/bot/` cliente de Discord, comandos slash y eventos.
 - `src/features/` lógica de características independiente de Discord.
