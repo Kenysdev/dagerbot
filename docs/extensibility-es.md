@@ -214,12 +214,13 @@ export async function createDataLayer(): Promise<DataLayer> {
 
 Cada proveedor de base de datos tiene su propia rama. Las ramas de desarrollo
 contienen los archivos de todos los proveedores, pero solo se compila e instala
-el proveedor activo. La diferencia entre ramas se limita a tres archivos:
+el proveedor activo. La diferencia entre ramas se limita a cuatro archivos:
 
 - `src/data/index.ts` — qué proveedor cablea la capa de datos, incluido el
   repositorio de sesiones de chat
 - `tsconfig.json` — `exclude` de los archivos del proveedor inactivo
 - `package.json` — el driver que se instala
+- `pnpm-lock.yaml` — se regenera solo al instalar, pero está versionado y difiere
 
 Los archivos del proveedor inactivo quedan excluidos del build, así que su driver
 no hace falta en producción. Para tener soporte del editor al editarlos se instala
@@ -243,7 +244,8 @@ El mantenedor decide cuál proveedor queda como default en la rama principal.
    como referencia. En cualquier caso el historial es efímero: se recorta a
    `historyLimit` y vence tras `sessionTtlSeconds`, ambos recibidos por llamada
    en el `SessionPolicy`.
-3. Crear la rama del proveedor y ajustar los tres archivos listados arriba.
+3. Crear la rama del proveedor y ajustar los archivos listados arriba (el lockfile
+   se regenera solo al ejecutar `pnpm install`).
 4. Activar `rerere` antes del primer merge de mantenimiento:
 
 ```bash
@@ -251,7 +253,7 @@ git config rerere.enabled true
 ```
 
 Los merges desde la rama principal hacia una rama de proveedor repiten siempre los
-mismos conflictos (los tres archivos de configuración). Con `rerere`, Git memoriza
+mismos conflictos (los cuatro archivos de configuración). Con `rerere`, Git memoriza
 cómo se resolvió cada conflicto y re-aplica esa resolución automáticamente en los
 merges siguientes. Es configuración local del clon: cada máquina lo activa una vez.
 

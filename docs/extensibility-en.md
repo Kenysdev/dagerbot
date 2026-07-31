@@ -213,12 +213,13 @@ export async function createDataLayer(): Promise<DataLayer> {
 
 Each database provider has its own branch. Development branches hold the files of
 every provider, but only the active provider is compiled and installed. The
-difference between branches is limited to three files:
+difference between branches is limited to four files:
 
 - `src/data/index.ts` — which provider wires the data layer, chat session
   repository included
 - `tsconfig.json` — `exclude` for the inactive provider's files
 - `package.json` — the driver that gets installed
+- `pnpm-lock.yaml` — regenerated on install, but tracked and different
 
 The inactive provider's files are excluded from the build, so its driver is not
 needed in production. To get editor support while editing them, install it as a
@@ -241,7 +242,8 @@ The maintainer decides which provider is the default on the main branch.
    provider. See `mongoSessionRepository.ts` as reference. Either way the history
    is ephemeral: trimmed to `historyLimit` and expiring after `sessionTtlSeconds`,
    both received per call in the `SessionPolicy`.
-3. Create the provider branch and adjust the three files listed above.
+3. Create the provider branch and adjust the files listed above (the lockfile
+   regenerates itself when you run `pnpm install`).
 4. Enable `rerere` before the first maintenance merge:
 
 ```bash
@@ -249,7 +251,7 @@ git config rerere.enabled true
 ```
 
 Merges from the main branch into a provider branch always repeat the same
-conflicts (the three configuration files). With `rerere`, Git records how each
+conflicts (the four configuration files). With `rerere`, Git records how each
 conflict was resolved and re-applies that resolution automatically on subsequent
 merges. It is clone-local configuration: each machine enables it once.
 
