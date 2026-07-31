@@ -8,14 +8,16 @@
 // To use a different provider, switch to the corresponding provider branch.
 // See docs/extensibility-en.md for the provider strategy.
 
-import type { SettingsRepository, MemeRepository } from "./types.js";
+import type { SettingsRepository, MemeRepository, SessionRepository } from "./types.js";
 import { createSqliteProvider } from "./providers/sqlite.js";
 import { createSettingsRepository } from "./repositories/sqliteSettingsRepository.js";
 import { createMemeRepository } from "./repositories/sqliteMemeRepository.js";
+import { createMemorySessionRepository } from "./repositories/memorySessionRepository.js";
 
 export type DataLayer = {
   settingsRepository: SettingsRepository;
   memeRepository: MemeRepository;
+  sessionRepository: SessionRepository;
   // newRepository: NewRepository; <- next feature
 };
 
@@ -27,6 +29,9 @@ export async function createDataLayer(): Promise<DataLayer> {
   return {
     settingsRepository: createSettingsRepository(provider),
     memeRepository: createMemeRepository(provider),
+    // Ephemeral by design, and provider-independent — see the file for what a
+    // SQLite-backed implementation would take.
+    sessionRepository: createMemorySessionRepository(),
     // newRepository: createNewRepository(provider), <- next feature
   };
 }

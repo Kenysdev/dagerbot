@@ -1,12 +1,13 @@
 {
   "name": "dagerbot",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Backend en TypeScript para chat HTTP con OpenAI y Fastify; bot de Discord multi-servidor.",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc -w",
     "dev": "tsx watch src/main.ts",
+    "commands:clear": "tsx src/scripts/clearCommands.ts",
     "start": "node dist/main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
