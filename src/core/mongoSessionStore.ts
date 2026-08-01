@@ -39,11 +39,6 @@ const ChatSessionModel =
   mongoose.models.ChatSession ??
   mongoose.model<ChatSessionDocument>("ChatSession", chatSessionSchema);
 
-function trim(history: ChatMessage[], historyLimit: number) {
-  if (history.length <= historyLimit) return;
-  history.splice(0, history.length - historyLimit);
-}
-
 function nextExpiresAt(sessionTtlSeconds: number) {
   return new Date(Date.now() + sessionTtlSeconds * 1000);
 }
@@ -54,22 +49,15 @@ export function createMongoSessionStore(params: {
 }): SessionStore {
   const { historyLimit, sessionTtlSeconds } = params;
 
-  async function load(sessionId: string): Promise<ChatMessage[]> {
-    const row = await ChatSessionModel.findOne({ sessionId })
-      .select({ history: 1, _id: 0 })
-      .lean<{ history?: ChatMessage[] }>();
-    return Array.isArray(row?.history) ? row.history : [];
-  }
-
-  async function save(sessionId: string, history: ChatMessage[]) {
+  // $push with $slice appends and trims on the server in a single operation, so
+  // two messages arriving at once cannot overwrite each other. The equality
+  // filter supplies sessionId to the document created by the upsert.
+  async function append(sessionId: string, message: ChatMessage) {
     await ChatSessionModel.updateOne(
       { sessionId },
       {
-        $set: {
-          sessionId,
-          history,
-          expiresAt: nextExpiresAt(sessionTtlSeconds),
-        },
+        $push: { history: { $each: [message], $slice: -historyLimit } },
+        $set: { expiresAt: nextExpiresAt(sessionTtlSeconds) },
       },
       { upsert: true }
     );
@@ -78,25 +66,27 @@ export function createMongoSessionStore(params: {
   return {
     async getHistory(sessionId) {
       if (!historyLimit) return [];
-      const history = await load(sessionId);
-      await save(sessionId, history);
-      return history.slice();
+
+      // Reading used to rewrite the whole history just to refresh the TTL, which
+      // could revert an append that landed in between. This only touches
+      // expiresAt, and reads in the same atomic operation.
+      const row = await ChatSessionModel.findOneAndUpdate(
+        { sessionId },
+        { $set: { expiresAt: nextExpiresAt(sessionTtlSeconds) } },
+        { returnDocument: "after", projection: { history: 1, _id: 0 } }
+      ).lean<{ history?: ChatMessage[] }>();
+
+      return Array.isArray(row?.history) ? row.history : [];
     },
 
     async appendUser(sessionId, text) {
       if (!historyLimit) return;
-      const history = await load(sessionId);
-      history.push({ role: "user", content: text });
-      trim(history, historyLimit);
-      await save(sessionId, history);
+      await append(sessionId, { role: "user", content: text });
     },
 
     async appendAssistant(sessionId, text) {
       if (!historyLimit) return;
-      const history = await load(sessionId);
-      history.push({ role: "assistant", content: text });
-      trim(history, historyLimit);
-      await save(sessionId, history);
+      await append(sessionId, { role: "assistant", content: text });
     },
   };
 }
