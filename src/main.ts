@@ -1,7 +1,7 @@
 import { buildApp } from "./app";
 import { loadConfig } from "./config/env";
 import { createFixedWindowLimiter } from "./core/rateLimit";
-import { createMongoSessionStore } from "./core/mongoSessionStore";
+import { createMongoSessionStore } from "./data/repositories/mongoSessionRepository";
 import { createOpenAIClient } from "./infra/openaiClient";
 import { createChatService } from "./services/chatService";
 import { startDiscordBot } from "./bot/discordBot";

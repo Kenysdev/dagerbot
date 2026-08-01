@@ -1,5 +1,5 @@
-import { ChatMessage } from "./types";
-import { SessionStore } from "./sessionStore";
+import { ChatMessage } from "../../core/types";
+import { SessionStore } from "../../core/sessionStore";
 
 export function createMemorySessionStore(params: {
   historyLimit: number;

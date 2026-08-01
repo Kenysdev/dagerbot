@@ -1,7 +1,7 @@
 import mongoose, { Schema } from "mongoose";
 
-import type { ChatMessage } from "./types.js";
-import type { SessionStore } from "./sessionStore.js";
+import type { ChatMessage } from "../../core/types.js";
+import type { SessionStore } from "../../core/sessionStore.js";
 
 type ChatSessionDocument = {
   sessionId: string;
