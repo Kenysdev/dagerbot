@@ -1,7 +1,7 @@
-import mongoose, { Schema } from "mongoose";
-
+import { Schema, type Model } from "mongoose";
+import type { SessionRepository } from "../types.js";
 import type { ChatMessage } from "../../core/types.js";
-import type { DbProvider, SessionRepository } from "../types.js";
+import type { MongoProvider } from "../providers/mongo.js";
 import { createStructureGuard } from "../mongoStructure.js";
 
 const COLLECTION = "chats";
@@ -63,17 +63,19 @@ const validator = {
 
 const MODEL_NAME = "ChatSession";
 
-const ChatSessionModel =
-  mongoose.models[MODEL_NAME] ??
-  mongoose.model<ChatSessionDocument>(MODEL_NAME, chatSessionSchema);
-
 function nextExpiresAt(sessionTtlSeconds: number) {
   return new Date(Date.now() + sessionTtlSeconds * 1000);
 }
 
-export function createSessionRepository(_provider: DbProvider): SessionRepository {
+export function createSessionRepository(provider: MongoProvider): SessionRepository {
+  const { connection } = provider;
+
+  const ChatSessionModel: Model<ChatSessionDocument> =
+    (connection.models[MODEL_NAME] as Model<ChatSessionDocument> | undefined) ??
+    connection.model<ChatSessionDocument>(MODEL_NAME, chatSessionSchema);
+
   const ready = createStructureGuard({
-    connection: mongoose.connection,
+    connection,
     model: ChatSessionModel,
     collection: COLLECTION,
     validator,
