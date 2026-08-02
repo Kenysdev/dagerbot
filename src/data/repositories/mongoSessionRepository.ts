@@ -2,6 +2,7 @@ import mongoose, { Schema } from "mongoose";
 
 import type { ChatMessage } from "../../core/types.js";
 import type { DbProvider, SessionRepository } from "../types.js";
+import { createStructureGuard } from "../mongoStructure.js";
 
 const COLLECTION = "chats";
 
@@ -13,7 +14,7 @@ type ChatSessionDocument = {
 
 const chatSessionSchema = new Schema<ChatSessionDocument>(
   {
-    sessionId: { type: String, required: true, unique: true, index: true },
+    sessionId: { type: String, required: true, unique: true },
     history: {
       type: [
         {
@@ -36,6 +37,30 @@ const chatSessionSchema = new Schema<ChatSessionDocument>(
 // Equivalent to the SESSION_TTL_SECONDS bookkeeping the memory store does by hand.
 chatSessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+// Carries the NOT NULL and type guarantees to the server, so they hold even for
+// writes that do not go through Mongoose.
+const validator = {
+  $jsonSchema: {
+    bsonType: "object",
+    required: ["sessionId", "history", "expiresAt"],
+    properties: {
+      sessionId: { bsonType: "string" },
+      history: {
+        bsonType: "array",
+        items: {
+          bsonType: "object",
+          required: ["role", "content"],
+          properties: {
+            role: { bsonType: "string" },
+            content: { bsonType: "string" },
+          },
+        },
+      },
+      expiresAt: { bsonType: "date" },
+    },
+  },
+};
+
 const MODEL_NAME = "ChatSession";
 
 const ChatSessionModel =
@@ -47,9 +72,21 @@ function nextExpiresAt(sessionTtlSeconds: number) {
 }
 
 export function createSessionRepository(_provider: DbProvider): SessionRepository {
+  const ready = createStructureGuard({
+    connection: mongoose.connection,
+    model: ChatSessionModel,
+    collection: COLLECTION,
+    validator,
+  });
+
+  // The guard runs after the historyLimit check on purpose: a limit of 0 turns
+  // chat storage off, and a disabled subsystem should not leave an empty
+  // collection behind. The other repositories call ready() first because they
+  // have no disabled state.
   return {
     getHistory: async (sessionId, { historyLimit, sessionTtlSeconds }) => {
       if (!historyLimit) return [];
+      await ready();
 
       // Refreshing expiresAt used to rewrite the whole history, which could
       // revert an append landing in between. This only touches expiresAt, and
@@ -65,6 +102,7 @@ export function createSessionRepository(_provider: DbProvider): SessionRepositor
 
     append: async (sessionId, message, { historyLimit, sessionTtlSeconds }) => {
       if (!historyLimit) return;
+      await ready();
 
       // $push with $slice appends and trims on the server in one operation, so
       // two messages arriving at once cannot overwrite each other.
