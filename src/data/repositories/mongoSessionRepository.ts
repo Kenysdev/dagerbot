@@ -1,7 +1,9 @@
 import mongoose, { Schema } from "mongoose";
 
 import type { ChatMessage } from "../../core/types.js";
-import type { SessionStore } from "../../core/sessionStore.js";
+import type { DbProvider, SessionRepository } from "../types.js";
+
+const COLLECTION = "chats";
 
 type ChatSessionDocument = {
   sessionId: string;
@@ -22,54 +24,36 @@ const chatSessionSchema = new Schema<ChatSessionDocument>(
       required: true,
       default: [],
     },
-    expiresAt: {
-      type: Date,
-      required: true,
-    },
+    expiresAt: { type: Date, required: true },
   },
   {
-    collection: "chats",
+    collection: COLLECTION,
     versionKey: false,
   }
 );
 
+// MongoDB drops the document on its own once expiresAt is in the past.
+// Equivalent to the SESSION_TTL_SECONDS bookkeeping the memory store does by hand.
 chatSessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+const MODEL_NAME = "ChatSession";
+
 const ChatSessionModel =
-  mongoose.models.ChatSession ??
-  mongoose.model<ChatSessionDocument>("ChatSession", chatSessionSchema);
+  mongoose.models[MODEL_NAME] ??
+  mongoose.model<ChatSessionDocument>(MODEL_NAME, chatSessionSchema);
 
 function nextExpiresAt(sessionTtlSeconds: number) {
   return new Date(Date.now() + sessionTtlSeconds * 1000);
 }
 
-export function createMongoSessionStore(params: {
-  historyLimit: number;
-  sessionTtlSeconds: number;
-}): SessionStore {
-  const { historyLimit, sessionTtlSeconds } = params;
-
-  // $push with $slice appends and trims on the server in a single operation, so
-  // two messages arriving at once cannot overwrite each other. The equality
-  // filter supplies sessionId to the document created by the upsert.
-  async function append(sessionId: string, message: ChatMessage) {
-    await ChatSessionModel.updateOne(
-      { sessionId },
-      {
-        $push: { history: { $each: [message], $slice: -historyLimit } },
-        $set: { expiresAt: nextExpiresAt(sessionTtlSeconds) },
-      },
-      { upsert: true }
-    );
-  }
-
+export function createSessionRepository(_provider: DbProvider): SessionRepository {
   return {
-    async getHistory(sessionId) {
+    getHistory: async (sessionId, { historyLimit, sessionTtlSeconds }) => {
       if (!historyLimit) return [];
 
-      // Reading used to rewrite the whole history just to refresh the TTL, which
-      // could revert an append that landed in between. This only touches
-      // expiresAt, and reads in the same atomic operation.
+      // Refreshing expiresAt used to rewrite the whole history, which could
+      // revert an append landing in between. This only touches expiresAt, and
+      // reads in the same atomic operation.
       const row = await ChatSessionModel.findOneAndUpdate(
         { sessionId },
         { $set: { expiresAt: nextExpiresAt(sessionTtlSeconds) } },
@@ -79,14 +63,19 @@ export function createMongoSessionStore(params: {
       return Array.isArray(row?.history) ? row.history : [];
     },
 
-    async appendUser(sessionId, text) {
+    append: async (sessionId, message, { historyLimit, sessionTtlSeconds }) => {
       if (!historyLimit) return;
-      await append(sessionId, { role: "user", content: text });
-    },
 
-    async appendAssistant(sessionId, text) {
-      if (!historyLimit) return;
-      await append(sessionId, { role: "assistant", content: text });
+      // $push with $slice appends and trims on the server in one operation, so
+      // two messages arriving at once cannot overwrite each other.
+      await ChatSessionModel.updateOne(
+        { sessionId },
+        {
+          $push: { history: { $each: [message], $slice: -historyLimit } },
+          $set: { expiresAt: nextExpiresAt(sessionTtlSeconds) },
+        },
+        { upsert: true }
+      );
     },
   };
 }

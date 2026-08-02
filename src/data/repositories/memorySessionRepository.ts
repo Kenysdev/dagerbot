@@ -1,52 +1,34 @@
-import { ChatMessage } from "../../core/types";
-import { SessionStore } from "../../core/sessionStore";
+import type { ChatMessage } from "../../core/types.js";
+import type { SessionRepository } from "../types.js";
 
-export function createMemorySessionStore(params: {
-  historyLimit: number;
-  sessionTtlSeconds: number;
-}): SessionStore {
-  const { historyLimit, sessionTtlSeconds } = params;
-  const sessions = new Map<
-    string,
-    { history: ChatMessage[]; expiresAt: number }
-  >();
+export function createMemorySessionRepository(): SessionRepository {
+  const sessions = new Map<string, { history: ChatMessage[]; expiresAt: number }>();
 
-  function getSession(sessionId: string) {
+  function getSession(sessionId: string, sessionTtlSeconds: number) {
     const now = Date.now();
     const existing = sessions.get(sessionId);
     if (existing && existing.expiresAt > now) {
       existing.expiresAt = now + sessionTtlSeconds * 1000;
       return existing;
     }
-    const fresh = {
-      history: [],
-      expiresAt: now + sessionTtlSeconds * 1000,
-    };
+    const fresh = { history: [], expiresAt: now + sessionTtlSeconds * 1000 };
     sessions.set(sessionId, fresh);
     return fresh;
   }
 
-  function trim(history: ChatMessage[]) {
-    if (history.length <= historyLimit) return;
-    history.splice(0, history.length - historyLimit);
-  }
-
   return {
-    async getHistory(sessionId) {
+    getHistory: async (sessionId, { historyLimit, sessionTtlSeconds }) => {
       if (!historyLimit) return [];
-      return getSession(sessionId).history.slice();
+      return getSession(sessionId, sessionTtlSeconds).history.slice();
     },
-    async appendUser(sessionId, text) {
+
+    append: async (sessionId, message, { historyLimit, sessionTtlSeconds }) => {
       if (!historyLimit) return;
-      const session = getSession(sessionId);
-      session.history.push({ role: "user", content: text });
-      trim(session.history);
-    },
-    async appendAssistant(sessionId, text) {
-      if (!historyLimit) return;
-      const session = getSession(sessionId);
-      session.history.push({ role: "assistant", content: text });
-      trim(session.history);
+      const session = getSession(sessionId, sessionTtlSeconds);
+      session.history.push(message);
+      if (session.history.length > historyLimit) {
+        session.history.splice(0, session.history.length - historyLimit);
+      }
     },
   };
 }
