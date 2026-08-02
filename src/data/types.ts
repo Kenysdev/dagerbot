@@ -5,7 +5,7 @@
 import type { ChatMessage } from "../core/types.js";
 
 export type DbProvider = {
-  name: "mongo";
+  name: "sqlite" | "mongo";
   initialize: () => Promise<void>;
 };
 
