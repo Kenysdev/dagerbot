@@ -5,6 +5,10 @@ import {
   type SlashCommandBuilder,
 } from "discord.js";
 import type { SettingsManager } from "../../../../core/types.js";
+import {
+  MAX_PURGE_SECONDS,
+  formatChannelGuardSettings,
+} from "../../../../features/channelGuard.js";
 
 type SubcommandMap = Map<
   string,
@@ -18,11 +22,11 @@ export function channelGuardSubcommand(
   builder.addSubcommand((sub) =>
     sub
       .setName("channel-guard")
-      .setDescription("View or update anti-spam channel guard settings")
+      .setDescription("Trap channel — everyone who posts there is banned")
       .addChannelOption((opt) =>
         opt
           .setName("channel")
-          .setDescription("Target channel to guard from spam")
+          .setDescription("Trap channel: must be unused, everyone who posts there is banned")
           .setRequired(false)
           .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
       )
@@ -63,6 +67,14 @@ export function channelGuardSubcommand(
           .setDescription("Space or comma-separated role mentions/IDs to add (e.g. @Role1 @Role2)")
           .setRequired(false)
       )
+      .addIntegerOption((opt) =>
+        opt
+          .setName("purge-seconds")
+          .setDescription("Seconds of the banned user's history to delete, server-wide (0-604800)")
+          .setRequired(false)
+          .setMinValue(0)
+          .setMaxValue(MAX_PURGE_SECONDS)
+      )
   );
 
   handlers.set("channel-guard", async (interaction, settingsManager) => {
@@ -78,6 +90,7 @@ export function channelGuardSubcommand(
 
     const removeRole = interaction.options.getRole("remove-ignored-role");
     const rawRolesStr = interaction.options.getString("ignored-roles");
+    const purgeSeconds = interaction.options.getInteger("purge-seconds");
 
     const current = await settingsManager.getSettings(interaction.guildId);
     let updatedGuard = { ...current.channelGuard };
@@ -93,6 +106,12 @@ export function channelGuardSubcommand(
     if (statusStr) {
       updatedGuard.enabled = statusStr === "on";
       changes.push(`Channel guard set to **${statusStr}**`);
+      hasChanges = true;
+    }
+
+    if (purgeSeconds !== null) {
+      updatedGuard.deleteMessageSeconds = purgeSeconds;
+      changes.push(`Purge window set to ${purgeSeconds}s`);
       hasChanges = true;
     }
 
@@ -129,18 +148,11 @@ export function channelGuardSubcommand(
     }
 
     if (!hasChanges && changes.length === 0) {
-      // Just show current settings
-      const channelDisplay = updatedGuard.channelId
-        ? `<#${updatedGuard.channelId}>`
-        : "Not set";
-      const statusDisplay = updatedGuard.enabled ? "on" : "off";
-      const rolesDisplay =
-        updatedGuard.ignoredRoleIds.length > 0
-          ? updatedGuard.ignoredRoleIds.map((id) => `<@&${id}>`).join(", ")
-          : "None";
-
       await interaction.reply({
-        content: `**Anti-Spam Channel Guard Settings**\n• Status: **${statusDisplay}**\n• Channel: ${channelDisplay}\n• Ignored Roles: ${rolesDisplay}`,
+        content: [
+          "🛡️ **channel-guard** — trap channel: everyone who posts there is banned",
+          ...formatChannelGuardSettings(updatedGuard),
+        ].join("\n"),
         flags: MessageFlags.Ephemeral,
       });
       return;
