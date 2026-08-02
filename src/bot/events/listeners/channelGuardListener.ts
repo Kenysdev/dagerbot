@@ -1,5 +1,6 @@
 import { PermissionFlagsBits, type Message } from "discord.js";
 import type { ChannelGuardSettings } from "../../../core/types.js";
+import { resolvePurgeSeconds } from "../../../features/channelGuard.js";
 
 // Authority over people: staff stays exempt even if the whitelist was never set.
 const MODERATION_PERMISSIONS = [
@@ -65,11 +66,10 @@ export async function handleChannelGuard(
       console.error(`[channelGuard] ${context}: failed to delete message:`, err);
     }
 
-    // Ban user with reason "Spam" and delete messages sent in the specified time frame (default 1h)
     try {
       await message.guild.members.ban(message.author.id, {
         reason: "Spam",
-        deleteMessageSeconds: config.deleteMessageSeconds || 3600,
+        deleteMessageSeconds: resolvePurgeSeconds(config.deleteMessageSeconds),
       });
     } catch (err) {
       console.error(`[channelGuard] ${context}: failed to ban user:`, err);
