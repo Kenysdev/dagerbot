@@ -1,0 +1,8 @@
+# pnpm will not run a dependency's install script unless it is approved here.
+# esbuild arrives through tsx; better-sqlite3 needs its binding built or the
+# driver throws on first use. Both stay listed on every provider branch: an
+# approval for a package a branch does not install is never read, and keeping
+# the file identical is one less conflict on provider merges.
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true
