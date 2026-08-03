@@ -137,7 +137,7 @@ node dist/main.js
 
 Notas de despliegue:
 
-- **Requisitos:** Node 20 o superior (lo exigen `better-sqlite3` y `mongoose`) y pnpm
+- **Requisitos:** Node 22.13 o superior (lo exige la versión de pnpm fijada) y pnpm
   (`corepack enable` o `npm i -g pnpm`).
 - **Servidor propio (VPS):** los comandos de arriba corren tal cual. Conviene lanzar el proceso
   con un gestor (systemd, pm2) en lugar de `node` directo, para que sobreviva a reinicios.
