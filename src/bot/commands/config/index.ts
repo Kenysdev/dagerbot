@@ -10,7 +10,7 @@ import type { BotCommand, SettingsManager } from "../../../core/types.js";
 import { showSubcommand } from "./subcommands/show.js";
 import { memeSubcommand } from "./subcommands/meme.js";
 import { memeRewardSubcommand } from "./subcommands/memeReward.js";
-// import { NewFeatureSubcommand } from "./subcommands/NewFeature.js"; <- future feature
+import { channelGuardSubcommand } from "./subcommands/channelGuard.js";
 
 type SubcommandHandler = (
   interaction: ChatInputCommandInteraction,
@@ -48,7 +48,7 @@ export function createConfigCommand(settingsManager: SettingsManager): BotComman
   showSubcommand(builder, subcommands);
   memeSubcommand(builder, subcommands);
   memeRewardSubcommand(builder, subcommands);
-  // welcomeSubcommand(builder, subcommands);
+  channelGuardSubcommand(builder, subcommands);
 
   return {
     name: "config",

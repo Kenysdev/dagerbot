@@ -96,12 +96,7 @@ Los eventos de infraestructura (`ClientReady`, `Error`, `InteractionCreate`) per
 
 **Regla: nunca registrar un nuevo `client.on()` con lógica de negocio fuera de `eventDispatcher.ts`.**
 
-Listeners actuales:
-
-| Archivo | Evento | Feature |
-|---|---|---|
-| `src/bot/events/listeners/memeListener.ts` | `MessageCreate` | Módulo meme + reward |
-| `src/bot/events/listeners/chatAiListener.ts` | `MessageCreate` | Chat con IA |
+Por esa regla, los listeners activos son exactamente los que llama `eventDispatcher.ts`: ese archivo es el índice, y no puede quedarse desactualizado.
 
 **Agregar una característica a un evento existente:**
 
