@@ -1,6 +1,6 @@
 {
   "name": "dagerbot",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "Bot de Discord multi-servidor en TypeScript, con chat por OpenAI.",
   "main": "dist/main.js",
   "scripts": {
