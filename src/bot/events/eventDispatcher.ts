@@ -11,7 +11,7 @@ export function registerEventDispatcher(
   deps: {
     settingsManager: SettingsManager;
     dataLayer: DataLayer;
-    chatService: ChatService;
+    chatService: ChatService | null;
     prefix: string;
   }
 ): void {
@@ -36,9 +36,11 @@ export function registerEventDispatcher(
       });
     }
 
-    await handleChatAi(message, client, chatService, prefix).catch((err) => {
-      console.error("[chatAiFeature] Error:", err);
-    });
+    if (chatService) {
+      await handleChatAi(message, client, chatService, prefix).catch((err) => {
+        console.error("[chatAiFeature] Error:", err);
+      });
+    }
 
     // next event handler
     // await handle<NameFeature>(message, deps).catch((err) => {
