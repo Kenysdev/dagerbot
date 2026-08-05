@@ -41,11 +41,18 @@ export type MemeRewardSettings = {
   message: string;
 };
 
+export type ChannelGuardSettings = {
+  enabled: boolean;
+  channelId: string;
+  ignoredRoleIds: string[];
+  deleteMessageSeconds: number;
+};
+
 // AppSettings grows here — one block per feature
 export type AppSettings = {
   meme: MemeSettings;
   memeReward: MemeRewardSettings;
-  // <NameFeature>: <NameFeature>Settings; <- next feature
+  channelGuard: ChannelGuardSettings;
 };
 
 // Async — receives guildId (multi-server)

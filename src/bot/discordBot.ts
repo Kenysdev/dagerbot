@@ -11,7 +11,7 @@ import { createCommandManager } from "./commands/commandManager.js";
 import { registerEventDispatcher } from "./events/eventDispatcher.js";
 
 export async function startDiscordBot(params: {
-  chatService: ChatService;
+  chatService: ChatService | null;
   settingsManager: SettingsManager;
   dataLayer: DataLayer;
 }): Promise<Client | null> {

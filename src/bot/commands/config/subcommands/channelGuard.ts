@@ -1,0 +1,239 @@
+import {
+  ChannelType,
+  MessageFlags,
+  PermissionFlagsBits,
+  type ChatInputCommandInteraction,
+  type SlashCommandBuilder,
+} from "discord.js";
+import type { SettingsManager } from "../../../../core/types.js";
+import {
+  MAX_PURGE_SECONDS,
+  formatChannelGuardSettings,
+  parseRoleTokens,
+} from "../../../../features/channelGuard.js";
+
+type SubcommandMap = Map<
+  string,
+  (i: ChatInputCommandInteraction, s: SettingsManager) => Promise<void>
+>;
+
+async function validateChannelGuardPermissions(
+  interaction: ChatInputCommandInteraction,
+  channelId: string
+): Promise<string | null> {
+  const botMember = await interaction.guild?.members.fetchMe();
+  if (!botMember) return "❌ Could not verify bot permissions.";
+
+  const errors: string[] = [];
+
+  if (!botMember.permissions.has(PermissionFlagsBits.BanMembers)) {
+    errors.push("❌ The bot cannot ban members, so the trap would never act.");
+  }
+
+  if (channelId) {
+    if (!botMember.permissionsIn(channelId).has(PermissionFlagsBits.ViewChannel)) {
+      errors.push("❌ The bot cannot see the trap channel, so it never sees what is posted there.");
+    }
+    if (!botMember.permissionsIn(channelId).has(PermissionFlagsBits.ManageMessages)) {
+      errors.push("❌ The bot cannot delete messages in the trap channel.");
+    }
+  }
+
+  return errors.length > 0 ? errors.join("\n") : null;
+}
+
+export function channelGuardSubcommand(
+  builder: SlashCommandBuilder,
+  handlers: SubcommandMap
+): void {
+  builder.addSubcommand((sub) =>
+    sub
+      .setName("channel-guard")
+      .setDescription("Trap channel — everyone who posts there is banned")
+      .addChannelOption((opt) =>
+        opt
+          .setName("channel")
+          .setDescription("Trap channel: must be unused, everyone who posts there is banned")
+          .setRequired(false)
+          .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+      )
+      .addStringOption((opt) =>
+        opt
+          .setName("status")
+          .setDescription("Enable or disable channel guard")
+          .setRequired(false)
+          .addChoices({ name: "on", value: "on" }, { name: "off", value: "off" })
+      )
+      .addRoleOption((opt) =>
+        opt
+          .setName("add-ignored-role")
+          .setDescription("Role to whitelist from channel guard")
+          .setRequired(false)
+      )
+      .addRoleOption((opt) =>
+        opt
+          .setName("add-ignored-role-2")
+          .setDescription("Second role to whitelist from channel guard")
+          .setRequired(false)
+      )
+      .addRoleOption((opt) =>
+        opt
+          .setName("add-ignored-role-3")
+          .setDescription("Third role to whitelist from channel guard")
+          .setRequired(false)
+      )
+      .addRoleOption((opt) =>
+        opt
+          .setName("remove-ignored-role")
+          .setDescription("Role to remove from channel guard whitelist")
+          .setRequired(false)
+      )
+      .addStringOption((opt) =>
+        opt
+          .setName("ignored-roles")
+          .setDescription("Space or comma-separated role mentions/IDs to add (e.g. @Role1 @Role2)")
+          .setRequired(false)
+      )
+      .addIntegerOption((opt) =>
+        opt
+          .setName("purge-seconds")
+          .setDescription("Seconds of the banned user's history to delete, server-wide (0-604800)")
+          .setRequired(false)
+          .setMinValue(0)
+          .setMaxValue(MAX_PURGE_SECONDS)
+      )
+  );
+
+  handlers.set("channel-guard", async (interaction, settingsManager) => {
+    if (!interaction.guildId) return;
+
+    const channel = interaction.options.getChannel("channel");
+    const statusStr = interaction.options.getString("status");
+    const addRoles = [
+      interaction.options.getRole("add-ignored-role"),
+      interaction.options.getRole("add-ignored-role-2"),
+      interaction.options.getRole("add-ignored-role-3"),
+    ].filter((r): r is NonNullable<typeof r> => r !== null);
+
+    const removeRole = interaction.options.getRole("remove-ignored-role");
+    const rawRolesStr = interaction.options.getString("ignored-roles");
+    const purgeSeconds = interaction.options.getInteger("purge-seconds");
+
+    const current = await settingsManager.getSettings(interaction.guildId);
+    let updatedGuard = { ...current.channelGuard };
+    let hasChanges = false;
+    const changes: string[] = [];
+    const warnings: string[] = [];
+
+    if (channel) {
+      updatedGuard.channelId = channel.id;
+      changes.push(`Channel set to <#${channel.id}>`);
+      hasChanges = true;
+    }
+
+    if (statusStr) {
+      updatedGuard.enabled = statusStr === "on";
+      changes.push(`Channel guard set to **${statusStr}**`);
+      hasChanges = true;
+    }
+
+    if (purgeSeconds !== null) {
+      updatedGuard.deleteMessageSeconds = purgeSeconds;
+      changes.push(`Purge window set to ${purgeSeconds}s`);
+      hasChanges = true;
+    }
+
+    const idsToAdd = addRoles.map((role) => role.id);
+    const rejected: string[] = [];
+
+    if (rawRolesStr) {
+      const { ids, invalid } = parseRoleTokens(rawRolesStr);
+      if (invalid.length > 0) rejected.push(`❌ Not a role mention or ID: ${invalid.join(", ")}`);
+      idsToAdd.push(...ids);
+    }
+
+    for (const id of idsToAdd) {
+      if (id === interaction.guildId) {
+        rejected.push("❌ @everyone would exempt the whole server and leave the trap inert.");
+      } else if (!interaction.guild?.roles.cache.has(id)) {
+        rejected.push(`❌ There is no role with id ${id} in this server.`);
+      }
+    }
+
+    // All or nothing: a whitelist applied halfway leaves people unprotected in silence.
+    if (rejected.length > 0) {
+      await interaction.reply({
+        content: [...new Set(rejected)].join("\n"),
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    for (const id of idsToAdd) {
+      if (!updatedGuard.ignoredRoleIds.includes(id)) {
+        updatedGuard.ignoredRoleIds = [...updatedGuard.ignoredRoleIds, id];
+        changes.push(`Added <@&${id}> to ignored roles`);
+        hasChanges = true;
+      }
+    }
+
+    if (removeRole) {
+      if (updatedGuard.ignoredRoleIds.includes(removeRole.id)) {
+        updatedGuard.ignoredRoleIds = updatedGuard.ignoredRoleIds.filter(
+          (id) => id !== removeRole.id
+        );
+        changes.push(`Removed <@&${removeRole.id}> from ignored roles`);
+        hasChanges = true;
+      } else {
+        changes.push(`Role <@&${removeRole.id}> was not in the ignored list`);
+      }
+    }
+
+    if (!hasChanges && changes.length === 0) {
+      await interaction.reply({
+        content: [
+          "🛡️ **channel-guard** — trap channel: everyone who posts there is banned",
+          ...formatChannelGuardSettings(updatedGuard),
+        ].join("\n"),
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    // Arming a ban trap on a bot that cannot ban leaves it firing and failing in silence.
+    if (updatedGuard.enabled) {
+      const permissionError = await validateChannelGuardPermissions(
+        interaction,
+        updatedGuard.channelId
+      );
+      if (permissionError) {
+        await interaction.reply({
+          content: permissionError,
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+    }
+
+    if (updatedGuard.enabled && !updatedGuard.channelId) {
+      warnings.push("⚠️ No trap channel configured. The guard does nothing until you set one.");
+    }
+
+    if (hasChanges) {
+      await settingsManager.saveSettings(interaction.guildId, {
+        ...current,
+        channelGuard: updatedGuard,
+      });
+    }
+
+    const lines = [
+      `**Updated Channel Guard Settings:**\n${changes.map((c) => `• ${c}`).join("\n")}`,
+    ];
+    if (warnings.length > 0) lines.push("", ...warnings);
+
+    await interaction.reply({
+      content: lines.join("\n"),
+      flags: MessageFlags.Ephemeral,
+    });
+  });
+}

@@ -1,11 +1,8 @@
 // Data layer provider selection — the app entry point never names a concrete
-// provider; it only calls createDataLayer().
+// provider; it only calls createDataLayer(). The imports below are the single
+// place where that choice is made, so swapping providers touches this file and
+// nothing else.
 //
-// Providers available in this folder:
-//   - providers/sqlite.ts + repositories/sqlite*  (active here)
-//   - providers/mongo.ts  + repositories/mongo*   (wired on the mongo provider branch)
-//
-// To use a different provider, switch to the corresponding provider branch.
 // See docs/extensibility-en.md for the provider strategy.
 
 import type { SettingsRepository, MemeRepository, SessionRepository } from "./types.js";
@@ -29,8 +26,6 @@ export async function createDataLayer(): Promise<DataLayer> {
   return {
     settingsRepository: createSettingsRepository(provider),
     memeRepository: createMemeRepository(provider),
-    // Ephemeral by design, and provider-independent — see the file for what a
-    // SQLite-backed implementation would take.
     sessionRepository: createMemorySessionRepository(),
     // newRepository: createNewRepository(provider), <- next feature
   };

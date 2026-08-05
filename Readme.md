@@ -1,116 +1,69 @@
-# Dagerbot HTTP Backend
+# Dagerbot
 
-Backend en TypeScript con Fastify para chatbot de discord en el antro usando OpenAI y async/await.
+Bot de Discord multi-servidor escrito en TypeScript: conversación con un modelo de
+lenguaje, dinámicas de comunidad y reglas por canal. Cada servidor activa y configura lo
+que quiere desde Discord, sin tocar el código ni reiniciar el bot.
 
-## Endpoints
+## Características
 
-- `GET /health` → `{ ok: true }`
-- `POST /chat` → `{ reply: string }`
+| Característica | Qué hace | Comando |
+|---|---|---|
+| **Chat** | Conversa con un modelo de OpenAI recordando el hilo por usuario y canal. Responde en DM, si lo mencionas, si usas el prefijo o si respondes a uno de sus mensajes. | — |
+| **Memes** | Reacciona automáticamente a las imágenes y vídeos de un canal, y opcionalmente borra lo que no sea media. | `/config meme` |
+| **Recompensa** | Otorga un rol al alcanzar una cantidad de memes publicados. | `/config meme-reward` |
+| **Ranking** | Top de usuarios por memes, navegable por páginas. | `/rank meme` |
+| **Canal trampa** | Banea a quien escriba en un canal señuelo. La moderación queda exenta por permisos. | `/config channel-guard` |
 
-### Body esperado
+`/config show` muestra el estado de todo. Los `/config` exigen el permiso indicado en
+`CONFIG_PERMISSION` (`Administrator` por defecto).
 
-```json
-{
-  "sessionId": "uuid",
-  "text": "hola",
-  "conversationId": "opcional"
-}
-```
+## Requisitos en Discord
 
-### Ejemplo de respuesta
+**Scopes:** `bot` · `applications.commands`
 
-```json
-{ "reply": "..." }
-```
+**Permisos:** `Send Messages` · `Add Reactions` · `Manage Messages` · `Manage Roles`.
+El canal trampa necesita además `Ban Members` en el servidor y `View Channel` +
+`Manage Messages` en el canal; `/config channel-guard` lo verifica y se niega a armar la
+trampa si falta alguno.
 
-## Discord bot
-
-- Responde en DM a cualquier mensaje.
-- En servidores responde si mencionas al bot o si usas prefijo (por defecto `!`).
-- Usa el mismo backend/servicio interno que `/chat`.
-- `/config show` — muestra el estado de todos los módulos.
-- `/config meme` — configura el módulo de memes (canal, reacciones, modo solo-media, random-react).
-- `/config meme-reward` — configura la recompensa por acumulación de memes (rol, meta, mensaje).
-- `/rank meme` — muestra el top de usuarios con más memes publicados, navegable por páginas.
-
-Variables de entorno:
-
-```
-DISCORD_TOKEN=...
-DISCORD_PREFIX=!
-DISCORD_CLIENT_ID=... # Required for slash command registration
-CONFIG_PERMISSION=... # Permission required to use /config commands
-DISCORD_GUILD_ID=...  # solo para desarrollo, omitir en producción
-# Si no defines `DISCORD_GUILD_ID`, los comandos se registran globalmente.
-```
-
-## Permisos requeridos
-
-Al invitar el bot, asegurarse de incluir los siguientes permisos y scopes:
-
-**Scopes:**
-- `bot`
-- `applications.commands`
-
-**Permisos del bot:**
-- `Send Messages`
-- `Add Reactions`
-- `Manage Messages`
-- `Manage Roles`
-
-> [!WARNING]
-> Si se agrega una característica nueva que requiera permisos adicionales:
-> - **Permisos del bot** (`Send Messages`, `Add Reactions`, etc.) pueden actualizarse
->   manualmente desde Configuración del servidor → Roles → rol del bot.
-> - **Scopes** nuevos (`applications.commands`, etc.) requieren re-invitar el bot
->   con un enlace OAuth2 actualizado.
-
-
-## Variables de entorno
-
-```
-OPENAI_API_KEY=...
-OPENAI_MODEL=gpt-4.1-mini
-# OPENAI_SYSTEM_PROMPT=Eres Dagerbot. Responde en espanol y se guapo mañosón.
-PORT=3000
-MAX_INPUT_CHARS=4096
-HISTORY_LIMIT=10
-SESSION_TTL_SECONDS=3600
-RATE_LIMIT_IP_PER_MIN=60
-RATE_LIMIT_SESSION_PER_MIN=100
-```
-
-Si no defines `OPENAI_SYSTEM_PROMPT`, se usa `src/config/systemPrompt.ts` por defecto.
-
-## Limpiar slash commands
-
-Los comandos globales y los de un guild son sets independientes en Discord y no se deduplican por nombre, así que una copia obsoleta en un scope puede quedar visible junto a la versión actualizada de otro. Este script los elimina bajo demanda, sin tocar el registro del arranque.
-
-Requiere `DISCORD_TOKEN` y `DISCORD_CLIENT_ID` en el entorno.
-
-```bash
-pnpm commands:clear -- --global          # limpia el scope global (afecta a TODOS los servidores)
-pnpm commands:clear -- --guild 123 456   # limpia uno o varios guilds
-pnpm commands:clear -- --guild 123,456   # también acepta lista separada por comas
-```
-
-Puedes combinar `--global` y `--guild`. Sin argumentos, imprime la ayuda y no hace nada.
+**Intent privilegiado: `Message Content`.** Hay que activarlo en el Portal de
+Desarrolladores. Sin él, Discord entrega vacíos el contenido y los adjuntos de los mensajes
+de servidor, con dos excepciones: los DM y los mensajes que **mencionan** al bot. En la
+práctica eso significa que el chat por mención y por DM sigue funcionando, pero **el
+prefijo deja de responder y las características de memes dejan de ver los adjuntos**. A
+partir de 100 servidores, Discord exige solicitarlo y que te lo aprueben.
 
 > [!NOTE]
-> Tras limpiar, si el cliente de Discord sigue mostrando los comandos viejos, refresca con `Ctrl/Cmd+R` — es caché del cliente. Los comandos de guild se actualizan al instante; los globales pueden tardar un poco en reflejarse en todos los clientes.
+> Si una característica nueva necesita permisos adicionales, se actualizan a mano desde
+> Configuración del servidor → Roles → rol del bot. Un **scope** nuevo, en cambio, obliga a
+> re-invitar el bot con un enlace OAuth2 actualizado.
 
-## Arquitectura
+## Puesta en marcha
 
-- `src/app.ts` registra rutas y dependencias.
-- `src/http/` controladores y rutas HTTP.
-- `src/services/` lógica de negocio (chat).
-- `src/core/` utilidades compartidas (rate limit, tipos).
-- `src/infra/` clientes externos (OpenAI).
-- `src/bot/` cliente de Discord, comandos slash y eventos.
-- `src/features/` lógica de características independiente de Discord.
-- `src/config/settingsManager.ts` configuración dinámica por servidor.
-- `src/data/` capa de datos — proveedores, repositorios y contratos.
-- `data/bot.db` base de datos SQLite generada automáticamente al arrancar.
+```bash
+cp .env.example .env    # mínimo: DISCORD_TOKEN y DISCORD_CLIENT_ID
+pnpm install
+pnpm dev                # arranca en local, sin compilar
+```
+
+El resto de variables tiene valor por defecto. Lo que ocurre si dejas alguna vacía:
+
+- **Sin `DISCORD_TOKEN`** el bot no se conecta a Discord: el proceso avisa y sigue vivo,
+  pero no hace nada.
+- **Sin `DISCORD_CLIENT_ID`** se conecta y chatea, pero **no registra los slash commands**:
+  te quedas sin `/config` ni `/rank`.
+- **Sin `OPENAI_API_KEY`** arranca con el chat desactivado. Memes, recompensa, ranking y
+  canal trampa funcionan igual.
+
+Para producción —compilar, desplegar y el endpoint de salud— ve a la
+[guía de despliegue](docs/deployment-es.md).
+
+## Documentación
+
+| Guía | Qué cubre |
+|---|---|
+| **[Despliegue](docs/deployment-es.md)** | Referencia completa de variables de entorno, puesta en producción y el endpoint de salud opcional. |
+| **[Extensibilidad](docs/extensibility-es.md)** | Cómo agregar una característica sin tocar el núcleo: comandos, eventos, configuración y capa de datos. |
 
 ## Proveedores de datos y ramas
 
@@ -122,42 +75,54 @@ significa desplegar la rama correspondiente** — no hay variable de entorno que
 | `riven/main` | SQLite (`data/bot.db`) | en memoria |
 | `riven/provider-mongo` | MongoDB (`MONGODB_URI`) | MongoDB |
 
-Los archivos de todos los proveedores están presentes en todas las ramas, pero cada
-rama solo compila e instala el suyo: los del proveedor inactivo quedan excluidos del
-build (`tsconfig.json`) y su driver no se instala en producción.
+Los archivos de todos los proveedores están presentes en todas las ramas, pero cada rama
+solo compila e instala el suyo: los del proveedor inactivo quedan excluidos del build
+(`tsconfig.json`) y su driver no se instala en producción.
 
-Despliegue:
+## Limpiar slash commands
+
+Los comandos globales y los de un guild son sets independientes en Discord y no se
+deduplican por nombre, así que una copia obsoleta en un scope puede quedar visible junto a
+la versión actualizada de otro. Este script los elimina bajo demanda, sin tocar el registro
+del arranque. Requiere `DISCORD_TOKEN` y `DISCORD_CLIENT_ID` en el entorno.
 
 ```bash
-pnpm install --frozen-lockfile   # incluye devDependencies, necesarias para compilar
-pnpm build
-pnpm prune --prod                # elimina las devDependencies
-node dist/main.js
+pnpm commands:clear -- --global          # limpia el scope global (afecta a TODOS los servidores)
+pnpm commands:clear -- --guild 123 456   # limpia uno o varios guilds
+pnpm commands:clear -- --guild 123,456   # también acepta lista separada por comas
 ```
 
-Notas de despliegue:
+Puedes combinar `--global` y `--guild`. Sin argumentos, imprime la ayuda y no hace nada.
 
-- **Requisitos:** Node 20 o superior (lo exigen `better-sqlite3` y `mongoose`) y pnpm
-  (`corepack enable` o `npm i -g pnpm`).
-- **Servidor propio (VPS):** los comandos de arriba corren tal cual. Conviene lanzar el proceso
-  con un gestor (systemd, pm2) en lugar de `node` directo, para que sobreviva a reinicios.
-- **PaaS (Railway, Render, etc.):** suelen detectar el lockfile de pnpm y ejecutar install,
-  `build` y `start` por su cuenta; ahí `pnpm prune --prod` es opcional (solo reduce el tamaño).
-- **SQLite necesita sistema de archivos persistente.** En plataformas con almacenamiento
-  efímero (p. ej. Railway sin volumen) los datos se pierden en cada despliegue: montar un
-  volumen o desplegar la rama del proveedor Mongo.
-- **En local:** `pnpm dev` ejecuta el TypeScript directamente, sin compilar. `pnpm start` corre
-  el compilado, así que necesita un `pnpm build` previo.
+> [!NOTE]
+> Si tras limpiar el cliente de Discord sigue mostrando los comandos viejos, refresca con
+> `Ctrl/Cmd+R` — es caché del cliente. Los de guild se actualizan al instante; los globales
+> pueden tardar en reflejarse.
 
-Detalles del modelo y cómo agregar un proveedor nuevo: [docs/extensibility-es.md](docs/extensibility-es.md).
+## Arquitectura
 
-## Extensibilidad
-
-El bot tiene una arquitectura modular — agregar nuevas características sin tocar el núcleo.
-Ver [docs/extensibility-es.md](docs/extensibility-es.md) para la guía completa.
+```
+src/
+  main.ts       arranque: lee el entorno, monta las dependencias y las cablea
+  bot/          adaptador de Discord: cliente, comandos slash, eventos y listeners
+  features/     reglas de cada característica, sin depender de Discord ni de la red
+  services/     el servicio de chat: modelo, historial y límites de uso
+  data/         capa de datos: proveedores, repositorios y sus contratos
+  config/       entorno, configuración por servidor y personalidad del bot
+  core/         utilidades compartidas: rate limit y tipos comunes
+  infra/        clientes de servicios externos (OpenAI)
+  http/         endpoint de salud y el error tipado del chat
+docs/           guías de extensibilidad y de despliegue
+data/bot.db     base de datos SQLite, creada al arrancar
+```
 
 ## Notas
 
-- Historial de chat en memoria: efímero, no se persiste. Guarda los últimos `HISTORY_LIMIT` mensajes por sesión, expira tras `SESSION_TTL_SECONDS` de inactividad y se pierde al reiniciar el bot.
-- Rate limit por IP y por sesión.
+- **El historial de chat es efímero.** Cada conversación guarda como mucho
+  `HISTORY_LIMIT` mensajes —contando los del bot— y se olvida tras `SESSION_TTL_SECONDS`
+  de inactividad. Es contexto para el modelo, no un registro que se conserve.
+- **Dos topes de uso en el chat**: uno por usuario de Discord, sumando todos sus canales y
+  DM, y otro por conversación, entendida como el trío servidor-canal-usuario.
+- **Límite de longitud.** El texto que se manda al modelo se mide en caracteres; por
+  encima de `MAX_INPUT_CHARS` se rechaza antes de gastar la consulta.
 - Entendiste la wea?
