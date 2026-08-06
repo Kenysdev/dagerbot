@@ -32,6 +32,12 @@ function defaultSettings(): AppSettings {
       goal: 50,
       message: "🎉 Congratulations {user}! You’ve reached the goal and earned the {role} role.",
     },
+    channelGuard: {
+      enabled: false,
+      channelId: "",
+      ignoredRoleIds: [],
+      deleteMessageSeconds: 3600,
+    },
   };
 }
 
@@ -60,8 +66,7 @@ type StoredRow = { version: number; data: AppSettings };
 export async function createSettingsManager(
   repository: SettingsRepository
 ): Promise<SettingsManager> {
-
-  // Repair outdated configs before the bot starts serving requests
+  // Repair outdated configs before the bot starts serving requests.
   await repository.repairAll((raw) => {
     const parsed = JSON.parse(raw) as StoredRow | AppSettings;
     // Support both old format (raw AppSettings) and new format ({ version, data })

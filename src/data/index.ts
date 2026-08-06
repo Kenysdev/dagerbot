@@ -1,11 +1,8 @@
 // Data layer provider selection — the app entry point never names a concrete
-// provider; it only calls createDataLayer().
+// provider; it only calls createDataLayer(). The imports below are the single
+// place where that choice is made, so swapping providers touches this file and
+// nothing else.
 //
-// Providers available in this folder:
-//   - providers/mongo.ts  + repositories/mongo*   (active here)
-//   - providers/sqlite.ts + repositories/sqlite*  (wired on the default branch)
-//
-// To use a different provider, switch to the corresponding provider branch.
 // See docs/extensibility-en.md for the provider strategy.
 
 import type { SettingsRepository, MemeRepository, SessionRepository } from "./types.js";

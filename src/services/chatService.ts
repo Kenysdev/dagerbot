@@ -2,13 +2,12 @@ import OpenAI from "openai";
 import { AppConfig } from "../config/env";
 import { SessionRepository, SessionPolicy } from "../data/types";
 import { HttpError } from "../http/httpError";
-import { DEFAULT_SYSTEM_PROMPT } from "../config/systemPrompt";
 
 export type ChatService = {
   sendMessage(params: {
     sessionId: string;
     text: string;
-    ip: string;
+    userKey: string;
   }): Promise<{ reply: string }>;
 };
 
@@ -16,10 +15,10 @@ export function createChatService(params: {
   config: AppConfig;
   openai: OpenAI;
   sessionRepository: SessionRepository;
-  allowIp: (key: string) => boolean;
+  allowUser: (key: string) => boolean;
   allowSession: (key: string) => boolean;
 }): ChatService {
-  const { config, openai, sessionRepository, allowIp, allowSession } = params;
+  const { config, openai, sessionRepository, allowUser, allowSession } = params;
 
   const policy: SessionPolicy = {
     historyLimit: config.historyLimit,
@@ -27,9 +26,16 @@ export function createChatService(params: {
   };
 
   return {
-    async sendMessage({ sessionId, text, ip }) {
-      if (!allowIp(ip)) {
-        throw new HttpError(429, "rate_limited", "IP rate limit exceeded.");
+    async sendMessage({ sessionId, text, userKey }) {
+      if (text.length > config.maxInputChars) {
+        throw new HttpError(
+          413,
+          "input_too_large",
+          `Vamo a calmarno' mascapito solo te voy a decir 2 cosas: mucho texto (Max ${config.maxInputChars} chars)`,
+        );
+      }
+      if (!allowUser(userKey)) {
+        throw new HttpError(429, "rate_limited", "User rate limit exceeded.");
       }
       if (!allowSession(`session:${sessionId}`)) {
         throw new HttpError(
@@ -43,7 +49,7 @@ export function createChatService(params: {
       await sessionRepository.append(sessionId, { role: "user", content: text }, policy);
 
       const messages = [
-        { role: "system", content: DEFAULT_SYSTEM_PROMPT },
+        { role: "system", content: config.openAiSystemPrompt },
       ].concat(history, [{ role: "user", content: text }]);
 
       const completion = await openai.chat.completions.create({
