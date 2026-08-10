@@ -44,7 +44,6 @@ export function createChatService(params: {
       }
 
       const history = await sessionRepository.getHistory(sessionId, policy);
-      await sessionRepository.append(sessionId, { role: "user", content: text }, policy);
 
       const messages = [
         { role: "system", content: config.openAiSystemPrompt },
@@ -60,6 +59,7 @@ export function createChatService(params: {
         throw new ChatError("OpenAI returned an empty response.");
       }
 
+      await sessionRepository.append(sessionId, { role: "user", content: text }, policy);
       await sessionRepository.append(sessionId, { role: "assistant", content: reply }, policy);
 
       return { reply };
