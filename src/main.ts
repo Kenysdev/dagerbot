@@ -1,8 +1,8 @@
 import { loadConfig } from "./config/env";
 import { createFixedWindowLimiter } from "./core/rateLimit";
 import { createOpenAIClient } from "./infra/openaiClient";
-import { createChatService, type ChatService } from "./services/chatService";
-import { startHealthServer } from "./http/healthServer";
+import { createChatService, type ChatService } from "./features/chat";
+import { startHealthServer } from "./infra/healthServer";
 import { startDiscordBot } from "./bot/discordBot";
 import { createDataLayer } from "./data/index.js";
 import { createSettingsManager } from "./config/settingsManager.js";

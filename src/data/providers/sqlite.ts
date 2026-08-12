@@ -17,6 +17,8 @@ export function createSqliteProvider(): SqliteProvider {
   ensureDataDir();
 
   const db = new Database(DB_PATH);
+  // Only the journal mode: better-sqlite3 already defaults busy_timeout to 5000 ms.
+  db.pragma("journal_mode = WAL");
 
   return {
     name: "sqlite",

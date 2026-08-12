@@ -105,13 +105,12 @@ Puedes combinar `--global` y `--guild`. Sin argumentos, imprime la ayuda y no ha
 src/
   main.ts       arranque: lee el entorno, monta las dependencias y las cablea
   bot/          adaptador de Discord: cliente, comandos slash, eventos y listeners
-  features/     reglas de cada característica, sin depender de Discord ni de la red
-  services/     el servicio de chat: modelo, historial y límites de uso
+  features/     la lógica de cada característica, sin depender de Discord
   data/         capa de datos: proveedores, repositorios y sus contratos
-  config/       entorno, configuración por servidor y personalidad del bot
-  core/         utilidades compartidas: rate limit y tipos comunes
-  infra/        clientes de servicios externos (OpenAI)
-  http/         endpoint de salud y el error tipado del chat
+  config/       entorno del proceso y configuración de cada servidor
+  core/         lo compartido que no pertenece a ninguna capa
+  infra/        adaptadores con el mundo fuera del proceso
+  scripts/      comandos de mantenimiento que se publican con el bot
 docs/           guías de extensibilidad y de despliegue
 data/bot.db     base de datos SQLite, creada al arrancar
 ```

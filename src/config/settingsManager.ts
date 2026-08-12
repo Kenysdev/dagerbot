@@ -1,5 +1,7 @@
 import type { AppSettings, SettingsManager } from "../core/types.js";
 import type { SettingsRepository } from "../data/types.js";
+import { DEFAULT_PURGE_SECONDS } from "../features/channelGuard.js";
+import { DEFAULT_REWARD_MESSAGE } from "../features/meme.js";
 
 /**
  * Dynamic settings manager — multi-server implementation.
@@ -30,13 +32,13 @@ function defaultSettings(): AppSettings {
       enabled: false,
       roleId: "",
       goal: 50,
-      message: "🎉 Congratulations {user}! You’ve reached the goal and earned the {role} role.",
+      message: DEFAULT_REWARD_MESSAGE,
     },
     channelGuard: {
       enabled: false,
       channelId: "",
       ignoredRoleIds: [],
-      deleteMessageSeconds: 3600,
+      deleteMessageSeconds: DEFAULT_PURGE_SECONDS,
     },
   };
 }
