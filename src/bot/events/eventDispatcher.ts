@@ -21,10 +21,10 @@ export function registerEventDispatcher(
     if (message.author.bot) return;
 
     if (message.guildId) {
-      // Without a catch here the rejection is unhandled — this listener is
-      // async and its promise goes nowhere — and the process dies on the first
-      // message after the database drops. Guild features go quiet; chat, which
-      // does not need the database, keeps working.
+      // Without a catch, a failed read aborts the whole listener. discord.js
+      // turns the rejection into an error event, so the bot stays up, but
+      // nothing below runs, chat included. With it, only the guild features
+      // that need these settings are skipped.
       const settings = await settingsManager
         .getSettings(message.guildId)
         .catch((err) => {
